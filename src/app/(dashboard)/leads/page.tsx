@@ -50,6 +50,7 @@ import {
   List,
 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { useBrand } from "@/components/providers/brand-provider";
 import { LeadPipelineCard } from "./lead-pipeline-card";
 
@@ -143,6 +144,8 @@ export default function LeadsPage() {
   const [deleteLead, setDeleteLead] = useState<Lead | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [movingLeadId, setMovingLeadId] = useState<string | null>(null);
+  const [dragOverStage, setDragOverStage] = useState<string | null>(null);
+  const [draggingLeadId, setDraggingLeadId] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     firstName: "",
@@ -408,10 +411,37 @@ export default function LeadsPage() {
           ) : (
             <div className="overflow-x-auto pb-4">
               <div className="flex gap-4 min-w-max">
-                {pipeline.map((col, colIndex) => (
+                {pipeline.map((col) => (
                   <div
                     key={col.stage}
-                    className="flex-shrink-0 w-[280px] min-w-[280px] bg-muted/30 rounded-lg p-3 flex flex-col"
+                    className={cn(
+                      "flex-shrink-0 w-[280px] min-w-[280px] rounded-lg p-3 flex flex-col transition-colors",
+                      dragOverStage === col.stage
+                        ? "bg-muted/60 ring-2 ring-primary/20"
+                        : "bg-muted/30"
+                    )}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "move";
+                      setDragOverStage(col.stage);
+                    }}
+                    onDragLeave={(e) => {
+                      if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                        setDragOverStage(null);
+                      }
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setDragOverStage(null);
+                      const leadId = e.dataTransfer.getData("text/plain");
+                      setDraggingLeadId(null);
+                      if (leadId) {
+                        const lead = col.leads.find((l) => l.id === leadId);
+                        if (!lead) {
+                          handleMoveStage(leadId, col.stage);
+                        }
+                      }
+                    }}
                   >
                     <div className="mb-3 flex items-center justify-between">
                       <span className="font-medium text-sm">{col.label}</span>
@@ -419,16 +449,26 @@ export default function LeadsPage() {
                         {col.leads.length}
                       </span>
                     </div>
-                    <div className="flex flex-col gap-2 flex-1 overflow-y-auto max-h-[calc(100vh-280px)]">
+                    <div
+                      className="flex flex-col gap-2 flex-1 overflow-y-auto max-h-[calc(100vh-280px)]"
+                      onDragOver={(e) => e.preventDefault()}
+                    >
                       {col.leads.map((leadItem) => (
-                        <LeadPipelineCard
+                        <div
                           key={leadItem.id}
-                          lead={leadItem}
-                          stage={col.stage}
-                          onEdit={() => openEditDialog(leadItem)}
-                          onMoveStage={handleMoveStage}
-                          movingLeadId={movingLeadId}
-                        />
+                          onDragStart={() => setDraggingLeadId(leadItem.id)}
+                          onDragEnd={() => {
+                            setDraggingLeadId(null);
+                            setDragOverStage(null);
+                          }}
+                        >
+                          <LeadPipelineCard
+                            lead={leadItem}
+                            stage={col.stage}
+                            onEdit={() => openEditDialog(leadItem)}
+                            isDragging={draggingLeadId === leadItem.id}
+                          />
+                        </div>
                       ))}
                     </div>
                   </div>

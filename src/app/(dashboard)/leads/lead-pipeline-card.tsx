@@ -1,35 +1,9 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from "@/components/ui/select";
-import { ChevronDown, Loader2 } from "lucide-react";
+import { Phone, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const STAGES = [
-  "prospecting",
-  "qualification",
-  "proposal",
-  "negotiation",
-  "closed_won",
-  "closed_lost",
-] as const;
-
-const STAGE_LABELS: Record<string, string> = {
-  prospecting: "Prospecting",
-  qualification: "Qualification",
-  proposal: "Proposal",
-  negotiation: "Negotiation",
-  closed_won: "Closed Won",
-  closed_lost: "Closed Lost",
-};
 
 interface LeadPipelineCardProps {
   lead: {
@@ -37,18 +11,15 @@ interface LeadPipelineCardProps {
     title: string;
     firstName?: string | null;
     lastName?: string | null;
-    customer: { name: string } | null;
+    phone?: string | null;
+    email?: string | null;
+    notes?: string | null;
     source: string | null;
     stage: string;
-    assignedTo: {
-      fullName: string | null;
-      avatarUrl: string | null;
-    } | null;
   };
   stage: string;
   onEdit: () => void;
-  onMoveStage: (leadId: string, newStage: string) => void;
-  movingLeadId: string | null;
+  isDragging?: boolean;
 }
 
 function getCardBorderClass(stage: string) {
@@ -61,69 +32,55 @@ export function LeadPipelineCard({
   lead,
   stage,
   onEdit,
-  onMoveStage,
-  movingLeadId,
+  isDragging,
 }: LeadPipelineCardProps) {
-  const otherStages = STAGES.filter((s) => s !== lead.stage);
+  const fullName = [lead.firstName, lead.lastName].filter(Boolean).join(" ");
 
   return (
     <Card
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/plain", lead.id);
+        e.dataTransfer.effectAllowed = "move";
+      }}
       className={cn(
-        "cursor-pointer hover:bg-muted/50 transition-colors",
-        getCardBorderClass(stage)
+        "cursor-grab active:cursor-grabbing hover:bg-muted/50 transition-all",
+        getCardBorderClass(stage),
+        isDragging && "opacity-50 scale-95"
       )}
       onClick={onEdit}
     >
       <CardContent className="p-3">
-        <div className="space-y-2">
-          <p className="font-medium text-sm">{lead.title}</p>
-          {(lead.firstName || lead.lastName) && (
-            <p className="text-xs text-muted-foreground">
-              {[lead.firstName, lead.lastName].filter(Boolean).join(" ")}
+        <div className="space-y-1.5">
+          <p className="font-medium text-sm leading-tight">
+            {fullName || "—"}
+          </p>
+
+          {lead.phone && (
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Phone className="size-3 shrink-0" />
+              <span className="truncate">{lead.phone}</span>
             </p>
           )}
+
+          {lead.email && (
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Mail className="size-3 shrink-0" />
+              <span className="truncate">{lead.email}</span>
+            </p>
+          )}
+
+          {lead.notes && (
+            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+              {lead.notes}
+            </p>
+          )}
+
           {lead.source && (
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline" className="text-[10px] mt-1">
               {lead.source}
             </Badge>
           )}
-          <div className="flex items-center justify-between pt-1">
-            {lead.assignedTo && (
-              <Avatar size="sm" className="size-5">
-                <AvatarImage src={lead.assignedTo.avatarUrl ?? undefined} />
-                <AvatarFallback className="text-[10px]">
-                  {lead.assignedTo.fullName
-                    ?.split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .slice(0, 2) ?? "—"}
-                </AvatarFallback>
-              </Avatar>
-            )}
-            <Select
-              value=""
-              onValueChange={(newStage) => onMoveStage(lead.id, newStage)}
-            >
-              <SelectTrigger
-                className="h-6 w-auto border-0 p-0 shadow-none gap-0 [&>svg]:hidden"
-                onClick={(e) => e.stopPropagation()}
-                disabled={movingLeadId === lead.id}
-              >
-                {movingLeadId === lead.id ? (
-                  <Loader2 className="size-3 animate-spin" />
-                ) : (
-                  <ChevronDown className="size-3" />
-                )}
-              </SelectTrigger>
-              <SelectContent align="end" position="popper" onClick={(e) => e.stopPropagation()}>
-                {otherStages.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {STAGE_LABELS[s]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
         </div>
       </CardContent>
     </Card>
