@@ -42,13 +42,7 @@ export type ResourceAction =
   | "brands:write"
   | "brands:delete"
   | "settings:read"
-  | "settings:write"
-  | "kb:read"
-  | "kb:write"
-  | "kb:delete"
-  | "tasks:read"
-  | "tasks:write"
-  | "tasks:delete";
+  | "settings:write";
 
 export const ALL_PERMISSIONS: ResourceAction[] = [
   "customers:read", "customers:write", "customers:delete",
@@ -60,8 +54,6 @@ export const ALL_PERMISSIONS: ResourceAction[] = [
   "users:read", "users:write", "users:delete",
   "brands:read", "brands:write", "brands:delete",
   "settings:read", "settings:write",
-  "kb:read", "kb:write", "kb:delete",
-  "tasks:read", "tasks:write", "tasks:delete",
 ];
 
 export const PERMISSION_GROUPS: Record<string, { label: string; permissions: ResourceAction[] }> = {
@@ -100,13 +92,5 @@ export const PERMISSION_GROUPS: Record<string, { label: string; permissions: Res
   settings: {
     label: "Settings",
     permissions: ["settings:read", "settings:write"],
-  },
-  kb: {
-    label: "Knowledge Base",
-    permissions: ["kb:read", "kb:write", "kb:delete"],
-  },
-  tasks: {
-    label: "Tasks",
-    permissions: ["tasks:read", "tasks:write", "tasks:delete"],
   },
 };

@@ -19,7 +19,6 @@ export async function GET(req: NextRequest) {
     openDeals,
     openTickets,
     recentActivities,
-    upcomingTasks,
     dealsByStage,
   ] = await Promise.all([
     db.customer.count({ where }),
@@ -32,11 +31,6 @@ export async function GET(req: NextRequest) {
       take: 10,
       include: { user: { select: { id: true, fullName: true, avatarUrl: true } } },
     }),
-    db.task.findMany({
-      where: { ...where, status: { in: ["pending", "in_progress"] }, assigneeId: user.id },
-      orderBy: { dueDate: "asc" },
-      take: 10,
-    }),
     db.deal.groupBy({
       by: ["stage"],
       where,
@@ -48,7 +42,6 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     stats: { totalCustomers, activeLeads, openDeals, openTickets },
     recentActivities,
-    upcomingTasks,
     dealsByStage,
   });
 }

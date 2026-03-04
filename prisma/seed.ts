@@ -34,12 +34,6 @@ const PERMISSIONS = [
   { resource: "brands", action: "delete" },
   { resource: "settings", action: "read" },
   { resource: "settings", action: "write" },
-  { resource: "kb", action: "read" },
-  { resource: "kb", action: "write" },
-  { resource: "kb", action: "delete" },
-  { resource: "tasks", action: "read" },
-  { resource: "tasks", action: "write" },
-  { resource: "tasks", action: "delete" },
 ];
 
 async function main() {

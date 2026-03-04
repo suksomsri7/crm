@@ -9,17 +9,14 @@ import {
   HandCoins,
   Megaphone,
   Ticket,
-  BookOpen,
   UserCog,
   Building2,
   Shield,
   Settings,
-  CheckSquare,
   PanelLeftClose,
   PanelLeft,
 } from "lucide-react";
 import { useBrand } from "@/components/providers/brand-provider";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -42,52 +39,8 @@ type NavItem = {
 type NavSection = {
   title: string;
   items: NavItem[];
-  sectionPermission?: string; // Section visible if user has this permission or isSuperAdmin
+  superAdminOnly?: boolean;
 };
-
-const NAV_SECTIONS: NavSection[] = [
-  {
-    title: "MAIN",
-    items: [
-      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    ],
-  },
-  {
-    title: "CRM",
-    items: [
-      { href: "/customers", label: "Customers", icon: Users, permission: "customers:read" },
-      { href: "/leads", label: "Leads", icon: Target, permission: "leads:read" },
-      { href: "/deals", label: "Deals", icon: HandCoins, permission: "deals:read" },
-    ],
-  },
-  {
-    title: "MARKETING",
-    items: [
-      { href: "/campaigns", label: "Campaigns", icon: Megaphone, permission: "campaigns:read" },
-    ],
-  },
-  {
-    title: "SUPPORT",
-    items: [
-      { href: "/tickets", label: "Tickets", icon: Ticket, permission: "tickets:read" },
-      { href: "/knowledge-base", label: "Knowledge Base", icon: BookOpen, permission: "kb:read" },
-    ],
-  },
-  {
-    title: "MANAGEMENT",
-    sectionPermission: "users:read",
-    items: [
-      { href: "/users", label: "Users", icon: UserCog, superAdminOnly: true },
-      { href: "/brands", label: "Brands", icon: Building2, superAdminOnly: true },
-      { href: "/roles", label: "Roles", icon: Shield, permission: "users:read" },
-    ],
-  },
-];
-
-const BOTTOM_ITEMS: NavItem[] = [
-  { href: "/settings", label: "Settings", icon: Settings, permission: "settings:read" },
-  { href: "/tasks", label: "Tasks", icon: CheckSquare, permission: "tasks:read" },
-];
 
 function NavItemLink({
   item,
@@ -128,6 +81,25 @@ function NavItemLink({
   return content;
 }
 
+const BRAND_CRM_ITEMS: NavItem[] = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/customers", label: "Customers", icon: Users, permission: "customers:read" },
+  { href: "/leads", label: "Leads", icon: Target, permission: "leads:read" },
+  { href: "/deals", label: "Deals", icon: HandCoins, permission: "deals:read" },
+  { href: "/campaigns", label: "Campaigns", icon: Megaphone, permission: "campaigns:read" },
+  { href: "/tickets", label: "Tickets", icon: Ticket, permission: "tickets:read" },
+];
+
+const MANAGEMENT_SECTION: NavSection = {
+  title: "MANAGEMENT",
+  superAdminOnly: true,
+  items: [
+    { href: "/management/users", label: "Users", icon: UserCog, superAdminOnly: true },
+    { href: "/management/brands", label: "Brands", icon: Building2, superAdminOnly: true },
+    { href: "/management/roles", label: "Roles", icon: Shield, superAdminOnly: true },
+  ],
+};
+
 export function Sidebar({
   isCollapsed,
   onToggle,
@@ -136,23 +108,15 @@ export function Sidebar({
   onToggle: () => void;
 }) {
   const pathname = usePathname();
-  const { hasPermission, isSuperAdmin } = useBrand();
+  const { activeBrand, hasPermission, isSuperAdmin } = useBrand();
 
   const isItemVisible = (item: NavItem) => {
     if (item.superAdminOnly) return isSuperAdmin;
-    if (item.permission) return hasPermission(item.permission);
+    if (item.permission) return isSuperAdmin || hasPermission(item.permission);
     return true;
   };
 
-  const isSectionVisible = (section: NavSection) => {
-    if (section.sectionPermission && !isSuperAdmin) {
-      return hasPermission(section.sectionPermission);
-    }
-    return true;
-  };
-
-  const getVisibleItems = (items: NavItem[]) =>
-    items.filter((item) => isItemVisible(item));
+  const brandName = activeBrand?.name;
 
   return (
     <aside
@@ -205,46 +169,66 @@ export function Sidebar({
         {/* Navigation */}
         <ScrollArea className="flex-1 px-2 py-4">
           <nav className="flex flex-col gap-6">
-            {NAV_SECTIONS.filter(isSectionVisible).map((section) => {
-              const visibleItems = getVisibleItems(section.items);
-              if (visibleItems.length === 0) return null;
-
-              return (
-                <div key={section.title}>
-                  {!isCollapsed && (
-                    <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      {section.title}
-                    </h3>
-                  )}
-                  <div className="flex flex-col gap-0.5">
-                    {visibleItems.map((item) => (
-                      <NavItemLink
-                        key={item.href}
-                        item={item}
-                        isActive={pathname === item.href}
-                        isCollapsed={isCollapsed}
-                      />
-                    ))}
-                  </div>
+            {/* Brand CRM Section */}
+            {(activeBrand || isSuperAdmin) && (
+              <div>
+                {!isCollapsed && brandName && (
+                  <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {brandName}
+                  </h3>
+                )}
+                {!isCollapsed && !brandName && isSuperAdmin && (
+                  <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    CRM
+                  </h3>
+                )}
+                <div className="flex flex-col gap-0.5">
+                  {BRAND_CRM_ITEMS.filter(isItemVisible).map((item) => (
+                    <NavItemLink
+                      key={item.href}
+                      item={item}
+                      isActive={pathname === item.href}
+                      isCollapsed={isCollapsed}
+                    />
+                  ))}
                 </div>
-              );
-            })}
+              </div>
+            )}
+
+            {/* Management Section - Super Admin only */}
+            {isSuperAdmin && (
+              <div>
+                {!isCollapsed && (
+                  <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {MANAGEMENT_SECTION.title}
+                  </h3>
+                )}
+                {isCollapsed && <Separator className="my-2" />}
+                <div className="flex flex-col gap-0.5">
+                  {MANAGEMENT_SECTION.items.map((item) => (
+                    <NavItemLink
+                      key={item.href}
+                      item={item}
+                      isActive={pathname === item.href || pathname.startsWith(item.href)}
+                      isCollapsed={isCollapsed}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </nav>
         </ScrollArea>
 
         <Separator />
 
-        {/* Bottom items */}
+        {/* Bottom: Settings */}
         <div className="shrink-0 px-2 py-4">
           <div className="flex flex-col gap-0.5">
-            {BOTTOM_ITEMS.filter(isItemVisible).map((item) => (
-              <NavItemLink
-                key={item.href}
-                item={item}
-                isActive={pathname === item.href}
-                isCollapsed={isCollapsed}
-              />
-            ))}
+            <NavItemLink
+              item={{ href: "/settings", label: "Settings", icon: Settings }}
+              isActive={pathname === "/settings"}
+              isCollapsed={isCollapsed}
+            />
           </div>
         </div>
       </TooltipProvider>

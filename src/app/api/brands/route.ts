@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
 
   // Also create default roles: Sales, Marketing, Support
   const salesPerms = allPermissions.filter((p) =>
-    ["customers:read", "customers:write", "leads:read", "leads:write", "leads:delete", "deals:read", "deals:write", "tasks:read", "tasks:write"].includes(`${p.resource}:${p.action}`)
+    ["customers:read", "customers:write", "leads:read", "leads:write", "leads:delete", "deals:read", "deals:write"].includes(`${p.resource}:${p.action}`)
   );
   await db.role.create({
     data: {
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
   });
 
   const marketingPerms = allPermissions.filter((p) =>
-    ["customers:read", "campaigns:read", "campaigns:write", "campaigns:delete", "reports:read", "tasks:read", "tasks:write"].includes(`${p.resource}:${p.action}`)
+    ["customers:read", "campaigns:read", "campaigns:write", "campaigns:delete", "reports:read"].includes(`${p.resource}:${p.action}`)
   );
   await db.role.create({
     data: {
@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
   });
 
   const supportPerms = allPermissions.filter((p) =>
-    ["customers:read", "tickets:read", "tickets:write", "tickets:delete", "kb:read", "kb:write", "tasks:read", "tasks:write"].includes(`${p.resource}:${p.action}`)
+    ["customers:read", "tickets:read", "tickets:write", "tickets:delete"].includes(`${p.resource}:${p.action}`)
   );
   await db.role.create({
     data: {
