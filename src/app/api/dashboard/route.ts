@@ -20,6 +20,8 @@ export async function GET(req: NextRequest) {
     openTickets,
     recentActivities,
     dealsByStage,
+    leadsByStage,
+    ticketsByPriority,
   ] = await Promise.all([
     db.customer.count({ where }),
     db.lead.count({ where: { ...where, stage: { notIn: ["closed_won", "closed_lost"] } } }),
@@ -37,11 +39,23 @@ export async function GET(req: NextRequest) {
       _sum: { value: true },
       _count: true,
     }),
+    db.lead.groupBy({
+      by: ["stage"],
+      where,
+      _count: true,
+    }),
+    db.ticket.groupBy({
+      by: ["priority"],
+      where,
+      _count: true,
+    }),
   ]);
 
   return NextResponse.json({
     stats: { totalCustomers, activeLeads, openDeals, openTickets },
     recentActivities,
     dealsByStage,
+    leadsByStage,
+    ticketsByPriority,
   });
 }
