@@ -79,12 +79,6 @@ interface SourceOption {
   isActive: boolean;
 }
 
-interface Customer {
-  id: string;
-  name: string;
-  company?: string | null;
-}
-
 interface AssignedUser {
   id: string;
   fullName: string | null;
@@ -143,8 +137,6 @@ export default function LeadsPage() {
   });
   const [loading, setLoading] = useState(true);
   const [listLoading, setListLoading] = useState(false);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [customersLoading, setCustomersLoading] = useState(false);
   const [sourceOptions, setSourceOptions] = useState<SourceOption[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
@@ -153,13 +145,11 @@ export default function LeadsPage() {
   const [movingLeadId, setMovingLeadId] = useState<string | null>(null);
 
   const [form, setForm] = useState({
-    title: "",
     firstName: "",
     lastName: "",
     phone: "",
     email: "",
     interest: "",
-    customerId: "" as string | null,
     source: "" as string | null,
     stage: "prospecting" as Stage,
     notes: "",
@@ -205,23 +195,6 @@ export default function LeadsPage() {
     [activeBrand?.id, pagination.page, pagination.limit, search]
   );
 
-  const fetchCustomers = useCallback(async () => {
-    if (!activeBrand?.id) return;
-    setCustomersLoading(true);
-    try {
-      const res = await fetch(
-        `/api/customers?brandId=${activeBrand.id}&limit=100`
-      );
-      if (!res.ok) throw new Error("Failed to fetch customers");
-      const data = await res.json();
-      setCustomers(data.customers);
-    } catch (err) {
-      toast.error("Failed to load customers");
-    } finally {
-      setCustomersLoading(false);
-    }
-  }, [activeBrand?.id]);
-
   useEffect(() => {
     if (activeBrand?.id) {
       fetchPipeline();
@@ -244,22 +217,19 @@ export default function LeadsPage() {
   }, []);
 
   useEffect(() => {
-    if (dialogOpen && activeBrand?.id) {
-      fetchCustomers();
+    if (dialogOpen) {
       fetchSources();
     }
-  }, [dialogOpen, activeBrand?.id, fetchCustomers, fetchSources]);
+  }, [dialogOpen, fetchSources]);
 
   const openCreateDialog = () => {
     setEditingLead(null);
     setForm({
-      title: "",
       firstName: "",
       lastName: "",
       phone: "",
       email: "",
       interest: "",
-      customerId: null,
       source: null,
       stage: "prospecting",
       notes: "",
@@ -270,13 +240,11 @@ export default function LeadsPage() {
   const openEditDialog = (lead: Lead) => {
     setEditingLead(lead);
     setForm({
-      title: lead.title,
       firstName: lead.firstName ?? "",
       lastName: lead.lastName ?? "",
       phone: lead.phone ?? "",
       email: lead.email ?? "",
       interest: lead.interest ?? "",
-      customerId: lead.customerId || null,
       source: lead.source || null,
       stage: lead.stage as Stage,
       notes: lead.notes ?? "",
@@ -286,20 +254,16 @@ export default function LeadsPage() {
 
   const handleSubmit = async () => {
     if (!activeBrand?.id) return;
-    if (!form.title.trim()) {
-      toast.error("Title is required");
-      return;
-    }
     setSubmitting(true);
     try {
+      const autoTitle = [form.firstName.trim(), form.lastName.trim()].filter(Boolean).join(" ") || "New Lead";
       const payload = {
-        title: form.title.trim(),
+        title: autoTitle,
         firstName: form.firstName.trim() || null,
         lastName: form.lastName.trim() || null,
         phone: form.phone.trim() || null,
         email: form.email.trim() || null,
         interest: form.interest.trim() || null,
-        customerId: form.customerId || null,
         source: form.source || null,
         stage: form.stage,
         notes: form.notes || null,
@@ -485,12 +449,12 @@ export default function LeadsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Title</TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Phone</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Source</TableHead>
                       <TableHead>Stage</TableHead>
+                      <TableHead>Interest</TableHead>
                       <TableHead>Assigned To</TableHead>
                       <TableHead>Created</TableHead>
                       <TableHead className="w-[80px]">Actions</TableHead>
@@ -500,7 +464,7 @@ export default function LeadsPage() {
                     {leads.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={9}
+                          colSpan={10}
                           className="text-center py-12 text-muted-foreground"
                         >
                           No leads found
@@ -510,9 +474,6 @@ export default function LeadsPage() {
                       leads.map((lead) => (
                         <TableRow key={lead.id}>
                           <TableCell className="font-medium">
-                            {lead.title}
-                          </TableCell>
-                          <TableCell>
                             {[lead.firstName, lead.lastName].filter(Boolean).join(" ") || "—"}
                           </TableCell>
                           <TableCell>
@@ -542,6 +503,9 @@ export default function LeadsPage() {
                             >
                               {STAGE_LABELS[lead.stage] ?? lead.stage}
                             </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {lead.interest || "—"}
                           </TableCell>
                           <TableCell>
                             {lead.assignedTo ? (
@@ -637,16 +601,48 @@ export default function LeadsPage() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="title">Title *</Label>
-              <Input
-                id="title"
-                value={form.title}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, title: e.target.value }))
-                }
-                placeholder="Lead title"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="source">Source</Label>
+                <Select
+                  value={form.source ?? "__none__"}
+                  onValueChange={(v) =>
+                    setForm((f) => ({ ...f, source: v === "__none__" ? null : v }))
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select source" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">None</SelectItem>
+                    {sourceOptions.map((opt) => (
+                      <SelectItem key={opt.id} value={opt.name}>
+                        {opt.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="stage">Stage</Label>
+                <Select
+                  value={form.stage}
+                  onValueChange={(v) =>
+                    setForm((f) => ({ ...f, stage: v as Stage }))
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STAGES.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {STAGE_LABELS[s]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -707,72 +703,6 @@ export default function LeadsPage() {
                 }
                 placeholder="What are they interested in?"
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="customer">Customer</Label>
-              <Select
-                value={form.customerId ?? "__none__"}
-                onValueChange={(v) =>
-                  setForm((f) => ({ ...f, customerId: v === "__none__" ? null : v }))
-                }
-                disabled={customersLoading}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select customer" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">None</SelectItem>
-                  {customers.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                      {c.company ? ` (${c.company})` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="source">Source</Label>
-                <Select
-                  value={form.source ?? "__none__"}
-                  onValueChange={(v) =>
-                    setForm((f) => ({ ...f, source: v === "__none__" ? null : v }))
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select source" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">None</SelectItem>
-                    {sourceOptions.map((opt) => (
-                      <SelectItem key={opt.id} value={opt.name}>
-                        {opt.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="stage">Stage</Label>
-                <Select
-                  value={form.stage}
-                  onValueChange={(v) =>
-                    setForm((f) => ({ ...f, stage: v as Stage }))
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STAGES.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {STAGE_LABELS[s]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="notes">Notes</Label>
