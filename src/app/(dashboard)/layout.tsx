@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Sidebar } from "@/components/layout/sidebar";
-import { Topbar } from "@/components/layout/topbar";
+import dynamic from "next/dynamic";
+
+const Sidebar = dynamic(() => import("@/components/layout/sidebar").then(m => ({ default: m.Sidebar })), { ssr: false });
+const Topbar = dynamic(() => import("@/components/layout/topbar").then(m => ({ default: m.Topbar })), { ssr: false });
 
 export default function DashboardLayout({
   children,

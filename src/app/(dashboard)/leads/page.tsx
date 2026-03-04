@@ -640,9 +640,9 @@ export default function LeadsPage() {
             <div className="space-y-2">
               <Label htmlFor="customer">Customer</Label>
               <Select
-                value={form.customerId ?? ""}
+                value={form.customerId ?? "__none__"}
                 onValueChange={(v) =>
-                  setForm((f) => ({ ...f, customerId: v || null }))
+                  setForm((f) => ({ ...f, customerId: v === "__none__" ? null : v }))
                 }
                 disabled={customersLoading}
               >
@@ -650,7 +650,7 @@ export default function LeadsPage() {
                   <SelectValue placeholder="Select customer" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="__none__">None</SelectItem>
                   {customers.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.name}

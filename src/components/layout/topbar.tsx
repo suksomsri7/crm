@@ -173,7 +173,6 @@ function NotificationBell() {
 export function Topbar({ isCollapsed, onToggle }: { isCollapsed: boolean; onToggle: () => void }) {
   const { data: session } = useSession();
   const { activeBrand, isSuperAdmin } = useBrand();
-
   const user = session?.user;
 
   return (
