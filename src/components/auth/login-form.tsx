@@ -1,8 +1,7 @@
 "use client";
 
-import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import {
   Card,
   CardContent,
@@ -17,38 +16,22 @@ import { Separator } from "@/components/ui/separator";
 import { Loader2, Lock } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
+import { loginAction } from "@/app/login/actions";
 
 export function LoginForm() {
-  const [loading, setLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const form = e.currentTarget;
-    const formData = new FormData(form);
-    const email = formData.get("email") as string;
-    const password = formData.get("password") as string;
+    const formData = new FormData(e.currentTarget);
 
-    setLoading(true);
-    try {
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      });
-
+    startTransition(async () => {
+      const result = await loginAction(formData);
       if (result?.error) {
-        toast.error("Invalid email or password");
-        return;
+        toast.error(result.error);
       }
-
-      if (result?.ok) {
-        router.push("/dashboard");
-        router.refresh();
-      }
-    } finally {
-      setLoading(false);
-    }
+    });
   }
 
   return (
@@ -76,7 +59,7 @@ export function LoginForm() {
               type="email"
               required
               placeholder="name@company.com"
-              disabled={loading}
+              disabled={isPending}
               autoComplete="email"
             />
           </div>
@@ -88,12 +71,12 @@ export function LoginForm() {
               type="password"
               required
               placeholder="Enter your password"
-              disabled={loading}
+              disabled={isPending}
               autoComplete="current-password"
             />
           </div>
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? (
+          <Button type="submit" className="w-full" disabled={isPending}>
+            {isPending ? (
               <>
                 <Loader2 className="size-4 animate-spin" />
                 Signing in...

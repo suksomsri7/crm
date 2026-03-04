@@ -11,51 +11,73 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+        try {
+          if (!credentials?.email || !credentials?.password) {
+            console.log("[auth] Missing credentials");
+            return null;
+          }
 
-        const user = await db.user.findUnique({
-          where: { email: credentials.email as string },
-          include: {
-            userBrands: {
-              include: {
-                brand: true,
-                role: {
-                  include: {
-                    rolePermissions: {
-                      include: { permission: true },
+          console.log("[auth] Attempting login for:", credentials.email);
+
+          const user = await db.user.findUnique({
+            where: { email: credentials.email as string },
+            include: {
+              userBrands: {
+                include: {
+                  brand: true,
+                  role: {
+                    include: {
+                      rolePermissions: {
+                        include: { permission: true },
+                      },
                     },
                   },
                 },
               },
             },
-          },
-        });
+          });
 
-        if (!user || !user.isActive) return null;
+          if (!user) {
+            console.log("[auth] User not found");
+            return null;
+          }
+          if (!user.isActive) {
+            console.log("[auth] User is inactive");
+            return null;
+          }
 
-        const isValid = await bcrypt.compare(
-          credentials.password as string,
-          user.password
-        );
-        if (!isValid) return null;
+          const isValid = await bcrypt.compare(
+            credentials.password as string,
+            user.password
+          );
+          if (!isValid) {
+            console.log("[auth] Invalid password");
+            return null;
+          }
 
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.fullName,
-          image: user.avatarUrl,
-          isSuperAdmin: user.isSuperAdmin,
-          brands: user.userBrands.map((ub) => ({
-            id: ub.brand.id,
-            name: ub.brand.name,
-            logoUrl: ub.brand.logoUrl,
-            roleId: ub.role.id,
-            roleName: ub.role.name,
-            permissions: ub.role.rolePermissions.map(
-              (rp) => `${rp.permission.resource}:${rp.permission.action}`
-            ),
-          })),
-        };
+          console.log("[auth] Login successful for:", user.email);
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.fullName,
+            image: user.avatarUrl,
+            isSuperAdmin: user.isSuperAdmin,
+            brands: user.userBrands.map((ub) => ({
+              id: ub.brand.id,
+              name: ub.brand.name,
+              logoUrl: ub.brand.logoUrl,
+              roleId: ub.role.id,
+              roleName: ub.role.name,
+              permissions: ub.role.rolePermissions.map(
+                (rp) => `${rp.permission.resource}:${rp.permission.action}`
+              ),
+            })),
+          };
+        } catch (error) {
+          console.error("[auth] Authorize error:", error);
+          return null;
+        }
       },
     }),
   ],
