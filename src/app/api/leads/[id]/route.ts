@@ -5,11 +5,15 @@ import { z } from "zod";
 
 const updateSchema = z.object({
   title: z.string().min(1).optional(),
+  firstName: z.string().optional().nullable(),
+  lastName: z.string().optional().nullable(),
+  phone: z.string().optional().nullable(),
+  email: z.string().optional().nullable(),
+  interest: z.string().optional().nullable(),
   customerId: z.string().optional().nullable(),
-  source: z.enum(["web", "email", "phone", "referral", "social", "other"]).optional().nullable(),
+  source: z.string().optional().nullable(),
   status: z.enum(["new", "contacted", "qualified", "unqualified"]).optional(),
   stage: z.enum(["prospecting", "qualification", "proposal", "negotiation", "closed_won", "closed_lost"]).optional(),
-  value: z.number().optional().nullable(),
   notes: z.string().optional().nullable(),
   assignedToId: z.string().optional().nullable(),
 });

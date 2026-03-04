@@ -45,7 +45,6 @@ import {
   Plus,
   Pencil,
   Trash2,
-  Search,
   Loader2,
   LayoutGrid,
   List,
@@ -72,17 +71,13 @@ const STAGE_LABELS: Record<string, string> = {
   closed_lost: "Closed Lost",
 };
 
-const SOURCE_OPTIONS = [
-  { value: "web", label: "Web" },
-  { value: "email", label: "Email" },
-  { value: "phone", label: "Phone" },
-  { value: "referral", label: "Referral" },
-  { value: "social", label: "Social" },
-  { value: "other", label: "Other" },
-] as const;
-
 type Stage = (typeof STAGES)[number];
-type Source = (typeof SOURCE_OPTIONS)[number]["value"];
+
+interface SourceOption {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
 
 interface Customer {
   id: string;
@@ -99,11 +94,15 @@ interface AssignedUser {
 interface Lead {
   id: string;
   title: string;
+  firstName: string | null;
+  lastName: string | null;
+  phone: string | null;
+  email: string | null;
+  interest: string | null;
   customerId: string | null;
   customer: { id: string; name: string; company?: string | null } | null;
   source: string | null;
   stage: string;
-  value: number | null;
   notes: string | null;
   assignedToId: string | null;
   assignedTo: AssignedUser | null;
@@ -114,21 +113,12 @@ interface PipelineColumn {
   stage: string;
   label: string;
   leads: Lead[];
-  totalValue: number;
+  count: number;
 }
 
 interface LeadsResponse {
   leads: Lead[];
   pagination: { page: number; limit: number; total: number; totalPages: number };
-}
-
-function formatCurrency(value: number) {
-  return value.toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  });
 }
 
 function formatDate(dateStr: string) {
@@ -155,6 +145,7 @@ export default function LeadsPage() {
   const [listLoading, setListLoading] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [customersLoading, setCustomersLoading] = useState(false);
+  const [sourceOptions, setSourceOptions] = useState<SourceOption[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [deleteLead, setDeleteLead] = useState<Lead | null>(null);
@@ -163,10 +154,14 @@ export default function LeadsPage() {
 
   const [form, setForm] = useState({
     title: "",
+    firstName: "",
+    lastName: "",
+    phone: "",
+    email: "",
+    interest: "",
     customerId: "" as string | null,
-    source: "" as Source | null,
+    source: "" as string | null,
     stage: "prospecting" as Stage,
-    value: "" as string | number,
     notes: "",
   });
 
@@ -239,20 +234,34 @@ export default function LeadsPage() {
     }
   }, [activeBrand?.id, viewMode, fetchLeads]);
 
+  const fetchSources = useCallback(async () => {
+    try {
+      const res = await fetch("/api/sources?active=true");
+      if (!res.ok) return;
+      const data = await res.json();
+      setSourceOptions(data.sources);
+    } catch {}
+  }, []);
+
   useEffect(() => {
     if (dialogOpen && activeBrand?.id) {
       fetchCustomers();
+      fetchSources();
     }
-  }, [dialogOpen, activeBrand?.id, fetchCustomers]);
+  }, [dialogOpen, activeBrand?.id, fetchCustomers, fetchSources]);
 
   const openCreateDialog = () => {
     setEditingLead(null);
     setForm({
       title: "",
+      firstName: "",
+      lastName: "",
+      phone: "",
+      email: "",
+      interest: "",
       customerId: null,
       source: null,
       stage: "prospecting",
-      value: "",
       notes: "",
     });
     setDialogOpen(true);
@@ -262,10 +271,14 @@ export default function LeadsPage() {
     setEditingLead(lead);
     setForm({
       title: lead.title,
+      firstName: lead.firstName ?? "",
+      lastName: lead.lastName ?? "",
+      phone: lead.phone ?? "",
+      email: lead.email ?? "",
+      interest: lead.interest ?? "",
       customerId: lead.customerId || null,
-      source: (lead.source as Source) || null,
+      source: lead.source || null,
       stage: lead.stage as Stage,
-      value: lead.value ?? "",
       notes: lead.notes ?? "",
     });
     setDialogOpen(true);
@@ -279,18 +292,24 @@ export default function LeadsPage() {
     }
     setSubmitting(true);
     try {
+      const payload = {
+        title: form.title.trim(),
+        firstName: form.firstName.trim() || null,
+        lastName: form.lastName.trim() || null,
+        phone: form.phone.trim() || null,
+        email: form.email.trim() || null,
+        interest: form.interest.trim() || null,
+        customerId: form.customerId || null,
+        source: form.source || null,
+        stage: form.stage,
+        notes: form.notes || null,
+      };
+
       if (editingLead) {
         const res = await fetch(`/api/leads/${editingLead.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: form.title.trim(),
-            customerId: form.customerId || null,
-            source: form.source || null,
-            stage: form.stage,
-            value: form.value ? Number(form.value) : null,
-            notes: form.notes || null,
-          }),
+          body: JSON.stringify(payload),
         });
         if (!res.ok) {
           const err = await res.json();
@@ -301,15 +320,7 @@ export default function LeadsPage() {
         const res = await fetch("/api/leads", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            brandId: activeBrand.id,
-            title: form.title.trim(),
-            customerId: form.customerId || null,
-            source: form.source || null,
-            stage: form.stage,
-            value: form.value ? Number(form.value) : null,
-            notes: form.notes || null,
-          }),
+          body: JSON.stringify({ ...payload, brandId: activeBrand.id }),
         });
         if (!res.ok) {
           const err = await res.json();
@@ -441,8 +452,7 @@ export default function LeadsPage() {
                     <div className="mb-3 flex items-center justify-between">
                       <span className="font-medium text-sm">{col.label}</span>
                       <span className="text-xs text-muted-foreground">
-                        {col.leads.length} ·{" "}
-                        {formatCurrency(col.totalValue)}
+                        {col.leads.length}
                       </span>
                     </div>
                     <div className="flex flex-col gap-2 flex-1 overflow-y-auto max-h-[calc(100vh-280px)]">
@@ -454,7 +464,6 @@ export default function LeadsPage() {
                           onEdit={() => openEditDialog(leadItem)}
                           onMoveStage={handleMoveStage}
                           movingLeadId={movingLeadId}
-                          formatCurrency={formatCurrency}
                         />
                       ))}
                     </div>
@@ -477,10 +486,11 @@ export default function LeadsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Title</TableHead>
-                      <TableHead>Customer</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Email</TableHead>
                       <TableHead>Source</TableHead>
                       <TableHead>Stage</TableHead>
-                      <TableHead>Value</TableHead>
                       <TableHead>Assigned To</TableHead>
                       <TableHead>Created</TableHead>
                       <TableHead className="w-[80px]">Actions</TableHead>
@@ -490,7 +500,7 @@ export default function LeadsPage() {
                     {leads.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={8}
+                          colSpan={9}
                           className="text-center py-12 text-muted-foreground"
                         >
                           No leads found
@@ -503,7 +513,13 @@ export default function LeadsPage() {
                             {lead.title}
                           </TableCell>
                           <TableCell>
-                            {lead.customer?.name ?? "—"}
+                            {[lead.firstName, lead.lastName].filter(Boolean).join(" ") || "—"}
+                          </TableCell>
+                          <TableCell>
+                            {lead.phone || "—"}
+                          </TableCell>
+                          <TableCell>
+                            {lead.email || "—"}
                           </TableCell>
                           <TableCell>
                             {lead.source ? (
@@ -526,11 +542,6 @@ export default function LeadsPage() {
                             >
                               {STAGE_LABELS[lead.stage] ?? lead.stage}
                             </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {lead.value != null && lead.value > 0
-                              ? formatCurrency(lead.value)
-                              : "—"}
                           </TableCell>
                           <TableCell>
                             {lead.assignedTo ? (
@@ -637,6 +648,66 @@ export default function LeadsPage() {
                 placeholder="Lead title"
               />
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name</Label>
+                <Input
+                  id="firstName"
+                  value={form.firstName}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, firstName: e.target.value }))
+                  }
+                  placeholder="First name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name</Label>
+                <Input
+                  id="lastName"
+                  value={form.lastName}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, lastName: e.target.value }))
+                  }
+                  placeholder="Last name"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  value={form.phone}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, phone: e.target.value }))
+                  }
+                  placeholder="Phone number"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={form.email}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, email: e.target.value }))
+                  }
+                  placeholder="Email address"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="interest">Interest</Label>
+              <Input
+                id="interest"
+                value={form.interest}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, interest: e.target.value }))
+                }
+                placeholder="What are they interested in?"
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="customer">Customer</Label>
               <Select
@@ -664,18 +735,19 @@ export default function LeadsPage() {
               <div className="space-y-2">
                 <Label htmlFor="source">Source</Label>
                 <Select
-                  value={form.source ?? ""}
+                  value={form.source ?? "__none__"}
                   onValueChange={(v) =>
-                    setForm((f) => ({ ...f, source: (v as Source) || null }))
+                    setForm((f) => ({ ...f, source: v === "__none__" ? null : v }))
                   }
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select source" />
                   </SelectTrigger>
                   <SelectContent>
-                    {SOURCE_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
+                    <SelectItem value="__none__">None</SelectItem>
+                    {sourceOptions.map((opt) => (
+                      <SelectItem key={opt.id} value={opt.name}>
+                        {opt.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -701,20 +773,6 @@ export default function LeadsPage() {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="value">Value</Label>
-              <Input
-                id="value"
-                type="number"
-                min={0}
-                step={0.01}
-                value={form.value}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, value: e.target.value }))
-                }
-                placeholder="0"
-              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="notes">Notes</Label>

@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
     stage,
     label: stage.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
     leads: leads.filter(l => l.stage === stage),
-    totalValue: leads.filter(l => l.stage === stage).reduce((sum, l) => sum + (l.value || 0), 0),
+    count: leads.filter(l => l.stage === stage).length,
   }));
 
   return NextResponse.json(pipeline);

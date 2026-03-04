@@ -155,10 +155,14 @@ model Lead {
   assignedToId String?
   createdById  String?
   title        String
-  source       String?  // web, email, phone, referral, social
+  firstName    String?
+  lastName     String?
+  phone        String?
+  email        String?
+  interest     String?
+  source       String?
   status       String   @default("new") // new, contacted, qualified, unqualified
   stage        String   @default("prospecting") // prospecting, qualification, proposal, negotiation, closed_won, closed_lost
-  value        Float?
   notes        String?
   metadata     Json?
   createdAt    DateTime @default(now())
@@ -316,4 +320,19 @@ model Notification {
 
   @@index([userId, isRead])
   @@map("notifications")
+}
+
+// ============================================================
+// CONFIGURATION
+// ============================================================
+
+model Source {
+  id        String   @id @default(cuid())
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name])
+  @@map("sources")
 }

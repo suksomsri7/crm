@@ -10,7 +10,7 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
-import { DollarSign, ChevronDown, Loader2 } from "lucide-react";
+import { ChevronDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const STAGES = [
@@ -35,9 +35,10 @@ interface LeadPipelineCardProps {
   lead: {
     id: string;
     title: string;
+    firstName?: string | null;
+    lastName?: string | null;
     customer: { name: string } | null;
     source: string | null;
-    value: number | null;
     stage: string;
     assignedTo: {
       fullName: string | null;
@@ -48,7 +49,6 @@ interface LeadPipelineCardProps {
   onEdit: () => void;
   onMoveStage: (leadId: string, newStage: string) => void;
   movingLeadId: string | null;
-  formatCurrency: (value: number) => string;
 }
 
 function getCardBorderClass(stage: string) {
@@ -63,7 +63,6 @@ export function LeadPipelineCard({
   onEdit,
   onMoveStage,
   movingLeadId,
-  formatCurrency,
 }: LeadPipelineCardProps) {
   const otherStages = STAGES.filter((s) => s !== lead.stage);
 
@@ -78,13 +77,9 @@ export function LeadPipelineCard({
       <CardContent className="p-3">
         <div className="space-y-2">
           <p className="font-medium text-sm">{lead.title}</p>
-          <p className="text-xs text-muted-foreground">
-            {lead.customer?.name ?? "—"}
-          </p>
-          {lead.value != null && lead.value > 0 && (
-            <p className="flex items-center gap-1 text-xs">
-              <DollarSign className="size-3" />
-              {formatCurrency(lead.value)}
+          {(lead.firstName || lead.lastName) && (
+            <p className="text-xs text-muted-foreground">
+              {[lead.firstName, lead.lastName].filter(Boolean).join(" ")}
             </p>
           )}
           {lead.source && (

@@ -5,11 +5,15 @@ import { z } from "zod";
 
 const leadSchema = z.object({
   title: z.string().min(1),
+  firstName: z.string().optional().nullable(),
+  lastName: z.string().optional().nullable(),
+  phone: z.string().optional().nullable(),
+  email: z.string().optional().nullable(),
+  interest: z.string().optional().nullable(),
   customerId: z.string().optional().nullable(),
-  source: z.enum(["web", "email", "phone", "referral", "social", "other"]).optional().nullable(),
+  source: z.string().optional().nullable(),
   status: z.enum(["new", "contacted", "qualified", "unqualified"]).optional().default("new"),
   stage: z.enum(["prospecting", "qualification", "proposal", "negotiation", "closed_won", "closed_lost"]).optional().default("prospecting"),
-  value: z.number().optional().nullable(),
   notes: z.string().optional().nullable(),
   assignedToId: z.string().optional().nullable(),
 });
@@ -40,6 +44,10 @@ export async function GET(req: NextRequest) {
   if (search) {
     where.OR = [
       { title: { contains: search, mode: "insensitive" } },
+      { firstName: { contains: search, mode: "insensitive" } },
+      { lastName: { contains: search, mode: "insensitive" } },
+      { email: { contains: search, mode: "insensitive" } },
+      { phone: { contains: search, mode: "insensitive" } },
       { customer: { name: { contains: search, mode: "insensitive" } } },
     ];
   }

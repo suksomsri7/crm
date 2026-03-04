@@ -47,8 +47,8 @@ type NavItem = {
 
 const CRM_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/customers", label: "Customers", icon: Users, permission: "customers:read" },
   { href: "/leads", label: "Leads", icon: Target, permission: "leads:read" },
+  { href: "/customers", label: "Customers", icon: Users, permission: "customers:read" },
   { href: "/deals", label: "Deals", icon: HandCoins, permission: "deals:read" },
   { href: "/campaigns", label: "Campaigns", icon: Megaphone, permission: "campaigns:read" },
   { href: "/tickets", label: "Tickets", icon: Ticket, permission: "tickets:read" },
@@ -59,6 +59,7 @@ const MANAGEMENT_ITEMS: NavItem[] = [
   { href: "/management/users", label: "Users", icon: UserCog },
   { href: "/management/brands", label: "Brands", icon: Building2 },
   { href: "/management/roles", label: "Roles", icon: Shield },
+  { href: "/management/sources", label: "Sources", icon: Target },
 ];
 
 function NavItemLink({
