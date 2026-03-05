@@ -147,6 +147,10 @@ export default function LeadsPage() {
   const [dragOverStage, setDragOverStage] = useState<string | null>(null);
   const [draggingLeadId, setDraggingLeadId] = useState<string | null>(null);
 
+  const [dealDialogOpen, setDealDialogOpen] = useState(false);
+  const [dealForm, setDealForm] = useState({ title: "", value: "", stage: "proposal", notes: "" });
+  const [dealSubmitting, setDealSubmitting] = useState(false);
+
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -765,8 +769,8 @@ export default function LeadsPage() {
                   size="sm"
                   onClick={() => {
                     const name = [editingLead.firstName, editingLead.lastName].filter(Boolean).join(" ") || editingLead.title;
-                    setDialogOpen(false);
-                    window.location.href = `/deals?createFrom=lead&leadId=${editingLead.id}&title=${encodeURIComponent(name)}`;
+                    setDealForm({ title: `Deal - ${name}`, value: "", stage: "proposal", notes: "" });
+                    setDealDialogOpen(true);
                   }}
                 >
                   <Plus className="size-4" />
@@ -810,6 +814,73 @@ export default function LeadsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Create Deal Dialog */}
+      <Dialog open={dealDialogOpen} onOpenChange={setDealDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create Deal</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Title *</Label>
+              <Input value={dealForm.title} onChange={(e) => setDealForm((f) => ({ ...f, title: e.target.value }))} placeholder="Deal title" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Value *</Label>
+                <Input type="number" min={0} value={dealForm.value} onChange={(e) => setDealForm((f) => ({ ...f, value: e.target.value }))} placeholder="0" />
+              </div>
+              <div className="space-y-2">
+                <Label>Stage</Label>
+                <Select value={dealForm.stage} onValueChange={(v) => setDealForm((f) => ({ ...f, stage: v }))}>
+                  <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="proposal">Proposal</SelectItem>
+                    <SelectItem value="negotiation">Negotiation</SelectItem>
+                    <SelectItem value="contract">Contract</SelectItem>
+                    <SelectItem value="closed_won">Closed Won</SelectItem>
+                    <SelectItem value="closed_lost">Closed Lost</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <Textarea value={dealForm.notes} onChange={(e) => setDealForm((f) => ({ ...f, notes: e.target.value }))} placeholder="Additional notes..." rows={2} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDealDialogOpen(false)}>Cancel</Button>
+            <Button disabled={dealSubmitting} onClick={async () => {
+              if (!dealForm.title.trim() || !dealForm.value) { toast.error("Title and Value are required"); return; }
+              if (!activeBrand?.id) return;
+              setDealSubmitting(true);
+              try {
+                const res = await fetch("/api/deals", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    brandId: activeBrand.id,
+                    title: dealForm.title.trim(),
+                    value: Number(dealForm.value),
+                    stage: dealForm.stage,
+                    notes: dealForm.notes || null,
+                    leadId: editingLead?.id || null,
+                  }),
+                });
+                if (!res.ok) throw new Error("Failed to create deal");
+                toast.success("Deal created");
+                setDealDialogOpen(false);
+              } catch { toast.error("Failed to create deal"); }
+              finally { setDealSubmitting(false); }
+            }}>
+              {dealSubmitting && <Loader2 className="size-4 animate-spin" />}
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
