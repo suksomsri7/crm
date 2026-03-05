@@ -5,8 +5,11 @@ import { z } from "zod";
 
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
-  email: z.string().email().optional().nullable(),
+  firstName: z.string().optional().nullable(),
+  lastName: z.string().optional().nullable(),
+  email: z.string().optional().nullable(),
   phone: z.string().optional().nullable(),
+  interest: z.string().optional().nullable(),
   company: z.string().optional().nullable(),
   address: z.string().optional().nullable(),
   city: z.string().optional().nullable(),

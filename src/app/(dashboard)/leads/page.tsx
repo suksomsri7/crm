@@ -757,7 +757,23 @@ export default function LeadsPage() {
               />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <div className="flex-1">
+              {editingLead && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const name = [editingLead.firstName, editingLead.lastName].filter(Boolean).join(" ") || editingLead.title;
+                    setDialogOpen(false);
+                    window.location.href = `/deals?createFrom=lead&leadId=${editingLead.id}&title=${encodeURIComponent(name)}`;
+                  }}
+                >
+                  <Plus className="size-4" />
+                  Create Deal
+                </Button>
+              )}
+            </div>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Cancel
             </Button>

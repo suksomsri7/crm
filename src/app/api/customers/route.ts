@@ -5,8 +5,11 @@ import { z } from "zod";
 
 const customerSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  email: z.string().email().optional().nullable(),
+  firstName: z.string().optional().nullable(),
+  lastName: z.string().optional().nullable(),
+  email: z.string().optional().nullable(),
   phone: z.string().optional().nullable(),
+  interest: z.string().optional().nullable(),
   company: z.string().optional().nullable(),
   address: z.string().optional().nullable(),
   city: z.string().optional().nullable(),
@@ -43,6 +46,8 @@ export async function GET(req: NextRequest) {
   if (search) {
     where.OR = [
       { name: { contains: search, mode: "insensitive" as const } },
+      { firstName: { contains: search, mode: "insensitive" as const } },
+      { lastName: { contains: search, mode: "insensitive" as const } },
       { email: { contains: search, mode: "insensitive" as const } },
       { phone: { contains: search } },
       { company: { contains: search, mode: "insensitive" as const } },

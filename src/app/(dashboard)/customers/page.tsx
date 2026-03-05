@@ -41,6 +41,11 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   Plus,
   Pencil,
   Trash2,
@@ -50,13 +55,16 @@ import {
   Download,
   Users,
   Filter,
-  X,
   ChevronLeft,
   ChevronRight,
-  Phone,
-  Mail,
-  Building,
+  ChevronDown,
+  ChevronUp,
   MapPin,
+  Briefcase,
+  GraduationCap,
+  AlertTriangle,
+  Heart,
+  Waves,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useBrand } from "@/components/providers/brand-provider";
@@ -66,15 +74,15 @@ import { format } from "date-fns";
 interface Customer {
   id: string;
   name: string;
+  firstName: string | null;
+  lastName: string | null;
   email: string | null;
   phone: string | null;
   company: string | null;
-  address: string | null;
-  city: string | null;
-  country: string | null;
+  interest: string | null;
+  status: "active" | "inactive" | "prospect";
   tags: string[];
   notes: string | null;
-  status: "active" | "inactive" | "prospect";
   createdAt: string;
 }
 
@@ -92,29 +100,51 @@ const STATUS_OPTIONS = [
   { value: "prospect", label: "Prospect" },
 ] as const;
 
-const EMPTY_FORM: {
-  name: string;
-  email: string;
+interface CustomerForm {
+  firstName: string;
+  lastName: string;
   phone: string;
-  company: string;
-  address: string;
-  city: string;
-  country: string;
+  email: string;
+  interest: string;
   status: "active" | "inactive" | "prospect";
   tags: string;
   notes: string;
-} = {
-  name: "",
-  email: "",
+}
+
+const EMPTY_FORM: CustomerForm = {
+  firstName: "",
+  lastName: "",
   phone: "",
-  company: "",
-  address: "",
-  city: "",
-  country: "",
+  email: "",
+  interest: "",
   status: "active",
   tags: "",
   notes: "",
 };
+
+// --- Sub-form type definitions ---
+interface AddressRecord { id?: string; type: string; street: string; city: string; state: string; postalCode: string; country: string; }
+interface JobRecord { id?: string; company: string; position: string; startDate: string; endDate: string; notes: string; }
+interface EducationRecord { id?: string; institution: string; degree: string; field: string; startYear: string; endYear: string; }
+interface EmergencyContactRecord { id?: string; name: string; relationship: string; phone: string; email: string; }
+interface MedicalRecord { id?: string; bloodType: string; allergies: string; conditions: string; medications: string; notes: string; }
+interface DivingRecord { id?: string; certLevel: string; licenseNumber: string; diveCount: string; lastDiveDate: string; instructor: string; notes: string; }
+
+interface ExtrasData {
+  addresses: AddressRecord[];
+  jobs: JobRecord[];
+  education: EducationRecord[];
+  emergencyContacts: EmergencyContactRecord[];
+  medical: MedicalRecord[];
+  diving: DivingRecord[];
+}
+
+const EMPTY_ADDRESS: AddressRecord = { type: "", street: "", city: "", state: "", postalCode: "", country: "" };
+const EMPTY_JOB: JobRecord = { company: "", position: "", startDate: "", endDate: "", notes: "" };
+const EMPTY_EDUCATION: EducationRecord = { institution: "", degree: "", field: "", startYear: "", endYear: "" };
+const EMPTY_EMERGENCY: EmergencyContactRecord = { name: "", relationship: "", phone: "", email: "" };
+const EMPTY_MEDICAL: MedicalRecord = { bloodType: "", allergies: "", conditions: "", medications: "", notes: "" };
+const EMPTY_DIVING: DivingRecord = { certLevel: "", licenseNumber: "", diveCount: "", lastDiveDate: "", instructor: "", notes: "" };
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -137,10 +167,9 @@ export default function CustomersPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
 
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
-  const [formData, setFormData] = useState(EMPTY_FORM);
+  const [formData, setFormData] = useState<CustomerForm>(EMPTY_FORM);
   const [formSubmitting, setFormSubmitting] = useState(false);
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -150,37 +179,34 @@ export default function CustomersPage() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importSubmitting, setImportSubmitting] = useState(false);
-  const [importResult, setImportResult] = useState<{
-    imported: number;
-    skipped: number;
-    total: number;
-  } | null>(null);
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; total: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Sub-forms
+  const [extras, setExtras] = useState<ExtrasData>({ addresses: [], jobs: [], education: [], emergencyContacts: [], medical: [], diving: [] });
+  const [openSections, setOpenSections] = useState<Set<string>>(new Set());
+  const [extrasLoading, setExtrasLoading] = useState(false);
+  const [extrasSaving, setExtrasSaving] = useState(false);
+
+  const toggleSection = (section: string) => {
+    setOpenSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(section)) next.delete(section);
+      else next.add(section);
+      return next;
+    });
+  };
 
   const fetchCustomers = useCallback(async () => {
     if (!activeBrand?.id && !isSuperAdmin) return;
     const brandId = activeBrand?.id;
-    if (!brandId) {
-      setCustomers([]);
-      setPagination(null);
-      setLoading(false);
-      return;
-    }
+    if (!brandId) { setCustomers([]); setPagination(null); setLoading(false); return; }
 
     setLoading(true);
     try {
-      const params = new URLSearchParams({
-        brandId,
-        search: debouncedSearch,
-        status: statusFilter === "all" ? "" : statusFilter,
-        page: String(page),
-        limit: "20",
-      });
+      const params = new URLSearchParams({ brandId, search: debouncedSearch, status: statusFilter === "all" ? "" : statusFilter, page: String(page), limit: "20" });
       const res = await fetch(`/api/customers?${params}`);
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Failed to fetch customers");
-      }
+      if (!res.ok) throw new Error("Failed to fetch customers");
       const data = await res.json();
       setCustomers(data.customers);
       setPagination(data.pagination);
@@ -193,98 +219,86 @@ export default function CustomersPage() {
     }
   }, [activeBrand?.id, isSuperAdmin, debouncedSearch, statusFilter, page]);
 
-  useEffect(() => {
-    fetchCustomers();
-  }, [fetchCustomers]);
+  useEffect(() => { fetchCustomers(); }, [fetchCustomers]);
 
-  const handleCreate = async () => {
-    if (!formData.name.trim()) {
-      toast.error("Name is required");
-      return;
-    }
-    const brandId = activeBrand?.id;
-    if (!brandId) {
-      toast.error("No brand selected");
-      return;
-    }
-
-    setFormSubmitting(true);
+  const fetchExtras = useCallback(async (customerId: string) => {
+    setExtrasLoading(true);
     try {
-      const tags = formData.tags
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean);
-      const res = await fetch("/api/customers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          brandId,
-          name: formData.name.trim(),
-          email: formData.email || null,
-          phone: formData.phone || null,
-          company: formData.company || null,
-          address: formData.address || null,
-          city: formData.city || null,
-          country: formData.country || null,
-          status: formData.status,
-          tags,
-          notes: formData.notes || null,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error?.name?.[0] || err.error || "Failed to create customer");
-      }
-      toast.success("Customer created");
-      setCreateDialogOpen(false);
-      setFormData(EMPTY_FORM);
-      fetchCustomers();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create customer");
+      const res = await fetch(`/api/customers/${customerId}/extras`);
+      if (!res.ok) throw new Error("Failed to fetch extras");
+      const data = await res.json();
+      setExtras(data);
+    } catch {
+      setExtras({ addresses: [], jobs: [], education: [], emergencyContacts: [], medical: [], diving: [] });
     } finally {
-      setFormSubmitting(false);
+      setExtrasLoading(false);
     }
+  }, []);
+
+  const openCreateDialog = () => {
+    setEditingCustomer(null);
+    setFormData(EMPTY_FORM);
+    setExtras({ addresses: [], jobs: [], education: [], emergencyContacts: [], medical: [], diving: [] });
+    setOpenSections(new Set());
+    setDialogOpen(true);
   };
 
-  const handleEdit = async () => {
-    if (!editingCustomer || !formData.name.trim()) {
-      toast.error("Name is required");
-      return;
-    }
+  const openEditDialog = (customer: Customer) => {
+    setEditingCustomer(customer);
+    setFormData({
+      firstName: customer.firstName || customer.name?.split(" ")[0] || "",
+      lastName: customer.lastName || customer.name?.split(" ").slice(1).join(" ") || "",
+      phone: customer.phone || "",
+      email: customer.email || "",
+      interest: customer.interest || "",
+      status: customer.status,
+      tags: (customer.tags || []).join(", "),
+      notes: customer.notes || "",
+    });
+    setOpenSections(new Set());
+    setDialogOpen(true);
+    fetchExtras(customer.id);
+  };
 
+  const handleSubmit = async () => {
+    if (!activeBrand?.id) { toast.error("No brand selected"); return; }
     setFormSubmitting(true);
+    const autoName = [formData.firstName.trim(), formData.lastName.trim()].filter(Boolean).join(" ") || "Unnamed";
+    const tags = formData.tags.split(",").map((t) => t.trim()).filter(Boolean);
+    const payload = {
+      name: autoName,
+      firstName: formData.firstName.trim() || null,
+      lastName: formData.lastName.trim() || null,
+      email: formData.email.trim() || null,
+      phone: formData.phone.trim() || null,
+      interest: formData.interest.trim() || null,
+      status: formData.status,
+      tags,
+      notes: formData.notes || null,
+    };
+
     try {
-      const tags = formData.tags
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean);
-      const res = await fetch(`/api/customers/${editingCustomer.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: formData.name.trim(),
-          email: formData.email || null,
-          phone: formData.phone || null,
-          company: formData.company || null,
-          address: formData.address || null,
-          city: formData.city || null,
-          country: formData.country || null,
-          status: formData.status,
-          tags,
-          notes: formData.notes || null,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Failed to update customer");
+      if (editingCustomer) {
+        const res = await fetch(`/api/customers/${editingCustomer.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error("Failed to update customer");
+        toast.success("Customer updated");
+      } else {
+        const res = await fetch("/api/customers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...payload, brandId: activeBrand.id }),
+        });
+        if (!res.ok) throw new Error("Failed to create customer");
+        toast.success("Customer created");
       }
-      toast.success("Customer updated");
-      setEditDialogOpen(false);
-      setEditingCustomer(null);
-      setFormData(EMPTY_FORM);
+      setDialogOpen(false);
       fetchCustomers();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update customer");
+      toast.error(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setFormSubmitting(false);
     }
@@ -292,47 +306,68 @@ export default function CustomersPage() {
 
   const handleDelete = async () => {
     if (!customerToDelete) return;
-
     setDeleteSubmitting(true);
     try {
-      const res = await fetch(`/api/customers/${customerToDelete.id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Failed to delete customer");
-      }
+      const res = await fetch(`/api/customers/${customerToDelete.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete");
       toast.success("Customer deleted");
       setDeleteDialogOpen(false);
       setCustomerToDelete(null);
       fetchCustomers();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete customer");
+      toast.error(err instanceof Error ? err.message : "Failed to delete");
     } finally {
       setDeleteSubmitting(false);
     }
   };
 
-  const handleImport = async () => {
-    if (!importFile || !activeBrand?.id) {
-      toast.error("Select a file and ensure a brand is active");
-      return;
+  const saveExtraRecord = async (type: string, data: any, recordId?: string) => {
+    if (!editingCustomer) return;
+    setExtrasSaving(true);
+    try {
+      if (recordId) {
+        await fetch(`/api/customers/${editingCustomer.id}/extras`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type, recordId, data }),
+        });
+      } else {
+        await fetch(`/api/customers/${editingCustomer.id}/extras`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type, data }),
+        });
+      }
+      await fetchExtras(editingCustomer.id);
+      toast.success("Saved");
+    } catch {
+      toast.error("Failed to save");
+    } finally {
+      setExtrasSaving(false);
     }
+  };
 
+  const deleteExtraRecord = async (type: string, recordId: string) => {
+    if (!editingCustomer) return;
+    try {
+      await fetch(`/api/customers/${editingCustomer.id}/extras?type=${type}&recordId=${recordId}`, { method: "DELETE" });
+      await fetchExtras(editingCustomer.id);
+      toast.success("Deleted");
+    } catch {
+      toast.error("Failed to delete");
+    }
+  };
+
+  const handleImport = async () => {
+    if (!importFile || !activeBrand?.id) return;
     setImportSubmitting(true);
     setImportResult(null);
     try {
-      const formData = new FormData();
-      formData.append("file", importFile);
-      formData.append("brandId", activeBrand.id);
-      const res = await fetch("/api/customers/import", {
-        method: "POST",
-        body: formData,
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Import failed");
-      }
+      const fd = new FormData();
+      fd.append("file", importFile);
+      fd.append("brandId", activeBrand.id);
+      const res = await fetch("/api/customers/import", { method: "POST", body: fd });
+      if (!res.ok) throw new Error("Import failed");
       const data = await res.json();
       setImportResult({ imported: data.imported, skipped: data.skipped, total: data.total });
       toast.success(`Imported ${data.imported} customers`);
@@ -345,19 +380,15 @@ export default function CustomersPage() {
   };
 
   const handleExport = async () => {
-    const brandId = activeBrand?.id;
-    if (!brandId) {
-      toast.error("No brand selected");
-      return;
-    }
+    if (!activeBrand?.id) return;
     try {
-      const res = await fetch(`/api/customers/export?brandId=${brandId}`);
+      const res = await fetch(`/api/customers/export?brandId=${activeBrand.id}`);
       if (!res.ok) throw new Error("Export failed");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `customers-${brandId}.csv`;
+      a.download = `customers-${activeBrand.id}.csv`;
       a.click();
       URL.revokeObjectURL(url);
       toast.success("Export downloaded");
@@ -366,58 +397,17 @@ export default function CustomersPage() {
     }
   };
 
-  const openEditDialog = (customer: Customer) => {
-    setEditingCustomer(customer);
-    setFormData({
-      name: customer.name,
-      email: customer.email || "",
-      phone: customer.phone || "",
-      company: customer.company || "",
-      address: customer.address || "",
-      city: customer.city || "",
-      country: customer.country || "",
-      status: customer.status,
-      tags: (customer.tags || []).join(", "),
-      notes: customer.notes || "",
-    });
-    setEditDialogOpen(true);
-  };
-
-  const openDeleteDialog = (customer: Customer) => {
-    setCustomerToDelete(customer);
-    setDeleteDialogOpen(true);
-  };
-
-  const resetImportDialog = () => {
-    setImportFile(null);
-    setImportResult(null);
-    setImportDialogOpen(false);
-  };
-
-  const showEmptyState = !activeBrand && !isSuperAdmin;
   const totalCount = pagination?.total ?? 0;
 
   if (sessionStatus === "loading") {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <div className="flex items-center justify-center min-h-[400px]"><Loader2 className="size-8 animate-spin text-muted-foreground" /></div>;
   }
 
-  if (showEmptyState) {
+  if (!activeBrand && !isSuperAdmin) {
     return (
       <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Customers</h2>
-          <p className="text-muted-foreground">Manage your customer database</p>
-        </div>
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <Users className="size-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground text-center">Select a brand to manage customers</p>
-          </CardContent>
-        </Card>
+        <div><h2 className="text-2xl font-bold tracking-tight">Customers</h2><p className="text-muted-foreground">Manage your customer database</p></div>
+        <Card><CardContent className="flex flex-col items-center justify-center py-16"><Users className="size-12 text-muted-foreground mb-4" /><p className="text-muted-foreground text-center">Select a brand to manage customers</p></CardContent></Card>
       </div>
     );
   }
@@ -425,14 +415,8 @@ export default function CustomersPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Customers</h2>
-          <p className="text-muted-foreground">Manage your customer database</p>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Users className="size-4" />
-          <span>{totalCount} total</span>
-        </div>
+        <div><h2 className="text-2xl font-bold tracking-tight">Customers</h2><p className="text-muted-foreground">Manage your customer database</p></div>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground"><Users className="size-4" /><span>{totalCount} total</span></div>
       </div>
 
       <Card>
@@ -441,60 +425,32 @@ export default function CustomersPage() {
           <div className="flex flex-wrap items-center gap-2 pt-2">
             <div className="relative flex-1 min-w-[200px] max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by name, email, phone, company..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                className="pl-9"
-              />
+              <Input placeholder="Search by name, email, phone..." value={searchInput} onChange={(e) => setSearchInput(e.target.value)} className="pl-9" />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[140px]">
-                <Filter className="size-4 mr-1.5" />
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
+              <SelectTrigger className="w-[140px]"><Filter className="size-4 mr-1.5" /><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectContent>{STATUS_OPTIONS.map((opt) => (<SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>))}</SelectContent>
             </Select>
-            <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
-              <Upload className="size-4" />
-              Import CSV
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleExport}>
-              <Download className="size-4" />
-              Export CSV
-            </Button>
-            <Button size="sm" onClick={() => { setFormData(EMPTY_FORM); setCreateDialogOpen(true); }}>
-              <Plus className="size-4" />
-              Add Customer
-            </Button>
+            <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}><Upload className="size-4" />Import CSV</Button>
+            <Button variant="outline" size="sm" onClick={handleExport}><Download className="size-4" />Export CSV</Button>
+            <Button size="sm" onClick={openCreateDialog}><Plus className="size-4" />Add Customer</Button>
           </div>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="size-8 animate-spin text-muted-foreground" />
-            </div>
+            <div className="flex items-center justify-center py-16"><Loader2 className="size-8 animate-spin text-muted-foreground" /></div>
           ) : customers.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16">
-              <Users className="size-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No customers found</p>
-            </div>
+            <div className="flex flex-col items-center justify-center py-16"><Users className="size-12 text-muted-foreground mb-4" /><p className="text-muted-foreground">No customers found</p></div>
           ) : (
             <>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
                     <TableHead>Phone</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Interest</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Tags</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
@@ -503,104 +459,36 @@ export default function CustomersPage() {
                   {customers.map((c) => (
                     <TableRow key={c.id}>
                       <TableCell>
-                        <div>
-                          <p className="font-medium">{c.name}</p>
-                          {c.company && (
-                            <p className="text-sm text-muted-foreground">{c.company}</p>
-                          )}
-                        </div>
+                        <p className="font-medium">
+                          {[c.firstName, c.lastName].filter(Boolean).join(" ") || c.name}
+                        </p>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{c.email || "—"}</TableCell>
                       <TableCell className="text-muted-foreground">{c.phone || "—"}</TableCell>
+                      <TableCell className="text-muted-foreground">{c.email || "—"}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">{c.interest || "—"}</TableCell>
                       <TableCell>
-                        <Badge
-                          variant={
-                            c.status === "active"
-                              ? "default"
-                              : c.status === "inactive"
-                                ? "secondary"
-                                : "outline"
-                          }
-                        >
-                          {c.status}
-                        </Badge>
+                        <Badge variant={c.status === "active" ? "default" : c.status === "inactive" ? "secondary" : "outline"}>{c.status}</Badge>
                       </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {(c.tags || []).slice(0, 3).map((t) => (
-                            <Badge key={t} variant="outline" className="font-normal">
-                              {t}
-                            </Badge>
-                          ))}
-                          {(c.tags || []).length > 3 && (
-                            <Badge variant="outline" className="font-normal">
-                              +{(c.tags || []).length - 3}
-                            </Badge>
-                          )}
-                          {(c.tags || []).length === 0 && (
-                            <span className="text-muted-foreground text-sm">—</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {format(new Date(c.createdAt), "MMM d, yyyy")}
-                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">{format(new Date(c.createdAt), "MMM d, yyyy")}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => openEditDialog(c)}
-                            aria-label="Edit"
-                          >
-                            <Pencil className="size-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => openDeleteDialog(c)}
-                            aria-label="Delete"
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => openEditDialog(c)}><Pencil className="size-4" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => { setCustomerToDelete(c); setDeleteDialogOpen(true); }} className="text-destructive hover:text-destructive"><Trash2 className="size-4" /></Button>
                         </div>
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
-
               {pagination && pagination.totalPages > 1 && (
                 <>
                   <Separator className="my-4" />
                   <div className="flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">
-                      Showing {(page - 1) * pagination.limit + 1}–{Math.min(page * pagination.limit, pagination.total)} of{" "}
-                      {pagination.total}
-                    </p>
+                    <p className="text-sm text-muted-foreground">Showing {(page - 1) * pagination.limit + 1}–{Math.min(page * pagination.limit, pagination.total)} of {pagination.total}</p>
                     <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={page <= 1}
-                        onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      >
-                        <ChevronLeft className="size-4" />
-                        Previous
-                      </Button>
-                      <span className="text-sm text-muted-foreground">
-                        Page {page} of {pagination.totalPages}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={page >= pagination.totalPages}
-                        onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
-                      >
-                        Next
-                        <ChevronRight className="size-4" />
-                      </Button>
+                      <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}><ChevronLeft className="size-4" />Previous</Button>
+                      <span className="text-sm text-muted-foreground">Page {page} of {pagination.totalPages}</span>
+                      <Button variant="outline" size="sm" disabled={page >= pagination.totalPages} onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}>Next<ChevronRight className="size-4" /></Button>
                     </div>
                   </div>
                 </>
@@ -610,39 +498,154 @@ export default function CustomersPage() {
         </CardContent>
       </Card>
 
-      {/* Create Dialog */}
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+      {/* Create / Edit Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add Customer</DialogTitle>
+            <DialogTitle>{editingCustomer ? "Edit Customer" : "Add Customer"}</DialogTitle>
           </DialogHeader>
-          <CustomerFormFields formData={formData} setFormData={setFormData} />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreate} disabled={formSubmitting}>
-              {formSubmitting && <Loader2 className="size-4 animate-spin" />}
-              Create
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <div className="space-y-4 py-4">
+            {/* Status */}
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={formData.status} onValueChange={(v) => setFormData((f) => ({ ...f, status: v as CustomerForm["status"] }))}>
+                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="prospect">Prospect</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Name row */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>First Name</Label>
+                <Input value={formData.firstName} onChange={(e) => setFormData((f) => ({ ...f, firstName: e.target.value }))} placeholder="First name" />
+              </div>
+              <div className="space-y-2">
+                <Label>Last Name</Label>
+                <Input value={formData.lastName} onChange={(e) => setFormData((f) => ({ ...f, lastName: e.target.value }))} placeholder="Last name" />
+              </div>
+            </div>
+            {/* Contact row */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Phone</Label>
+                <Input value={formData.phone} onChange={(e) => setFormData((f) => ({ ...f, phone: e.target.value }))} placeholder="Phone number" />
+              </div>
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input type="email" value={formData.email} onChange={(e) => setFormData((f) => ({ ...f, email: e.target.value }))} placeholder="Email address" />
+              </div>
+            </div>
+            {/* Interest */}
+            <div className="space-y-2">
+              <Label>Interest</Label>
+              <Input value={formData.interest} onChange={(e) => setFormData((f) => ({ ...f, interest: e.target.value }))} placeholder="What are they interested in?" />
+            </div>
+            {/* Tags */}
+            <div className="space-y-2">
+              <Label>Tags (comma-separated)</Label>
+              <Input value={formData.tags} onChange={(e) => setFormData((f) => ({ ...f, tags: e.target.value }))} placeholder="vip, enterprise" />
+            </div>
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <Textarea value={formData.notes} onChange={(e) => setFormData((f) => ({ ...f, notes: e.target.value }))} placeholder="Additional notes..." rows={3} />
+            </div>
 
-      {/* Edit Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Edit Customer</DialogTitle>
-          </DialogHeader>
-          <CustomerFormFields formData={formData} setFormData={setFormData} />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleEdit} disabled={formSubmitting}>
+            {/* Sub-forms (only in edit mode) */}
+            {editingCustomer && (
+              <>
+                <Separator />
+                <p className="text-sm font-medium text-muted-foreground">Additional Information</p>
+                {extrasLoading ? (
+                  <div className="flex justify-center py-4"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>
+                ) : (
+                  <div className="space-y-2">
+                    <ExtraSection title="Diving" icon={<Waves className="size-4" />} isOpen={openSections.has("diving")} onToggle={() => toggleSection("diving")}
+                      records={extras.diving} type="diving" emptyRecord={EMPTY_DIVING} onSave={saveExtraRecord} onDelete={deleteExtraRecord} saving={extrasSaving}
+                      fields={[
+                        { key: "certLevel", label: "Certification Level" },
+                        { key: "licenseNumber", label: "License Number" },
+                        { key: "diveCount", label: "Dive Count" },
+                        { key: "lastDiveDate", label: "Last Dive Date" },
+                        { key: "instructor", label: "Instructor" },
+                        { key: "notes", label: "Notes", type: "textarea" },
+                      ]}
+                    />
+                    <ExtraSection title="Address" icon={<MapPin className="size-4" />} isOpen={openSections.has("addresses")} onToggle={() => toggleSection("addresses")}
+                      records={extras.addresses} type="addresses" emptyRecord={EMPTY_ADDRESS} onSave={saveExtraRecord} onDelete={deleteExtraRecord} saving={extrasSaving}
+                      fields={[
+                        { key: "type", label: "Type (home/work)" },
+                        { key: "street", label: "Street" },
+                        { key: "city", label: "City" },
+                        { key: "state", label: "State/Province" },
+                        { key: "postalCode", label: "Postal Code" },
+                        { key: "country", label: "Country" },
+                      ]}
+                    />
+                    <ExtraSection title="Jobs" icon={<Briefcase className="size-4" />} isOpen={openSections.has("jobs")} onToggle={() => toggleSection("jobs")}
+                      records={extras.jobs} type="jobs" emptyRecord={EMPTY_JOB} onSave={saveExtraRecord} onDelete={deleteExtraRecord} saving={extrasSaving}
+                      fields={[
+                        { key: "company", label: "Company" },
+                        { key: "position", label: "Position" },
+                        { key: "startDate", label: "Start Date" },
+                        { key: "endDate", label: "End Date" },
+                        { key: "notes", label: "Notes", type: "textarea" },
+                      ]}
+                    />
+                    <ExtraSection title="Education" icon={<GraduationCap className="size-4" />} isOpen={openSections.has("education")} onToggle={() => toggleSection("education")}
+                      records={extras.education} type="education" emptyRecord={EMPTY_EDUCATION} onSave={saveExtraRecord} onDelete={deleteExtraRecord} saving={extrasSaving}
+                      fields={[
+                        { key: "institution", label: "Institution" },
+                        { key: "degree", label: "Degree" },
+                        { key: "field", label: "Field of Study" },
+                        { key: "startYear", label: "Start Year" },
+                        { key: "endYear", label: "End Year" },
+                      ]}
+                    />
+                    <ExtraSection title="Emergency Contact" icon={<AlertTriangle className="size-4" />} isOpen={openSections.has("emergencyContacts")} onToggle={() => toggleSection("emergencyContacts")}
+                      records={extras.emergencyContacts} type="emergencyContacts" emptyRecord={EMPTY_EMERGENCY} onSave={saveExtraRecord} onDelete={deleteExtraRecord} saving={extrasSaving}
+                      fields={[
+                        { key: "name", label: "Name" },
+                        { key: "relationship", label: "Relationship" },
+                        { key: "phone", label: "Phone" },
+                        { key: "email", label: "Email" },
+                      ]}
+                    />
+                    <ExtraSection title="Medical" icon={<Heart className="size-4" />} isOpen={openSections.has("medical")} onToggle={() => toggleSection("medical")}
+                      records={extras.medical} type="medical" emptyRecord={EMPTY_MEDICAL} onSave={saveExtraRecord} onDelete={deleteExtraRecord} saving={extrasSaving}
+                      fields={[
+                        { key: "bloodType", label: "Blood Type" },
+                        { key: "allergies", label: "Allergies" },
+                        { key: "conditions", label: "Conditions" },
+                        { key: "medications", label: "Medications" },
+                        { key: "notes", label: "Notes", type: "textarea" },
+                      ]}
+                    />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <div className="flex-1">
+              {editingCustomer && (
+                <Button variant="outline" size="sm" onClick={() => {
+                  const name = [formData.firstName, formData.lastName].filter(Boolean).join(" ") || editingCustomer.name;
+                  setDialogOpen(false);
+                  window.location.href = `/deals?createFrom=customer&customerId=${editingCustomer.id}&title=${encodeURIComponent(name)}`;
+                }}>
+                  <Plus className="size-4" />Create Deal
+                </Button>
+              )}
+            </div>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSubmit} disabled={formSubmitting}>
               {formSubmitting && <Loader2 className="size-4 animate-spin" />}
-              Save
+              {editingCustomer ? "Save" : "Create"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -653,67 +656,30 @@ export default function CustomersPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete customer</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete {customerToDelete?.name}? This action cannot be undone.
-            </AlertDialogDescription>
+            <AlertDialogDescription>Are you sure you want to delete {customerToDelete?.name}? This action cannot be undone.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={(e) => {
-                e.preventDefault();
-                handleDelete();
-              }}
-              disabled={deleteSubmitting}
-            >
-              {deleteSubmitting && <Loader2 className="size-4 animate-spin" />}
-              Delete
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); handleDelete(); }} disabled={deleteSubmitting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deleteSubmitting && <Loader2 className="size-4 animate-spin" />}Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
       {/* Import Dialog */}
-      <Dialog open={importDialogOpen} onOpenChange={(open) => !open && resetImportDialog()}>
+      <Dialog open={importDialogOpen} onOpenChange={(open) => !open && (() => { setImportFile(null); setImportResult(null); setImportDialogOpen(false); })()}>
         <DialogContent className="sm:max-w-[440px]">
-          <DialogHeader>
-            <DialogTitle>Import CSV</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Upload a CSV file with columns: name, email, phone, company, city, country, status
-          </p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv"
-            className="hidden"
-            onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
-          />
+          <DialogHeader><DialogTitle>Import CSV</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Upload a CSV file with columns: name, email, phone, company, city, country, status</p>
+          <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={(e) => setImportFile(e.target.files?.[0] ?? null)} />
           <div className="flex flex-col gap-2">
-            <Button
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Upload className="size-4" />
-              {importFile ? importFile.name : "Choose file"}
-            </Button>
-            {importResult && (
-              <p className="text-sm text-muted-foreground">
-                Imported {importResult.imported}, Skipped {importResult.skipped} of {importResult.total} total
-              </p>
-            )}
+            <Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="size-4" />{importFile ? importFile.name : "Choose file"}</Button>
+            {importResult && <p className="text-sm text-muted-foreground">Imported {importResult.imported}, Skipped {importResult.skipped} of {importResult.total} total</p>}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={resetImportDialog}>
-              {importResult ? "Close" : "Cancel"}
-            </Button>
-            {!importResult && (
-              <Button onClick={handleImport} disabled={!importFile || importSubmitting}>
-                {importSubmitting && <Loader2 className="size-4 animate-spin" />}
-                Upload
-              </Button>
-            )}
+            <Button variant="outline" onClick={() => { setImportFile(null); setImportResult(null); setImportDialogOpen(false); }}>{importResult ? "Close" : "Cancel"}</Button>
+            {!importResult && <Button onClick={handleImport} disabled={!importFile || importSubmitting}>{importSubmitting && <Loader2 className="size-4 animate-spin" />}Upload</Button>}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -721,115 +687,155 @@ export default function CustomersPage() {
   );
 }
 
-function CustomerFormFields({
-  formData,
-  setFormData,
+// --- Reusable Extra Section Component ---
+interface FieldDef {
+  key: string;
+  label: string;
+  type?: "text" | "textarea";
+}
+
+function ExtraSection({
+  title,
+  icon,
+  isOpen,
+  onToggle,
+  records,
+  type,
+  emptyRecord,
+  onSave,
+  onDelete,
+  saving,
+  fields,
 }: {
-  formData: typeof EMPTY_FORM;
-  setFormData: React.Dispatch<React.SetStateAction<typeof EMPTY_FORM>>;
+  title: string;
+  icon: React.ReactNode;
+  isOpen: boolean;
+  onToggle: () => void;
+  records: any[];
+  type: string;
+  emptyRecord: any;
+  onSave: (type: string, data: any, recordId?: string) => Promise<void>;
+  onDelete: (type: string, recordId: string) => Promise<void>;
+  saving: boolean;
+  fields: FieldDef[];
 }) {
+  const [editingRecord, setEditingRecord] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState<any>({});
+
+  const startAdd = () => {
+    setEditingRecord({ __new: true });
+    setEditForm({ ...emptyRecord });
+  };
+
+  const startEdit = (record: any) => {
+    setEditingRecord(record);
+    const form: any = {};
+    fields.forEach((f) => { form[f.key] = record[f.key] ?? ""; });
+    setEditForm(form);
+  };
+
+  const handleSave = async () => {
+    const data: any = {};
+    fields.forEach((f) => {
+      const val = editForm[f.key]?.toString().trim();
+      data[f.key] = val || null;
+    });
+    if (type === "diving" && data.diveCount) {
+      data.diveCount = parseInt(data.diveCount) || null;
+    }
+    await onSave(type, data, editingRecord?.__new ? undefined : editingRecord?.id);
+    setEditingRecord(null);
+  };
+
   return (
-    <div className="grid gap-4 py-4">
-      <div className="grid gap-2">
-        <Label htmlFor="name">Name *</Label>
-        <Input
-          id="name"
-          value={formData.name}
-          onChange={(e) => setFormData((f) => ({ ...f, name: e.target.value }))}
-          placeholder="John Doe"
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="grid gap-2">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            value={formData.email}
-            onChange={(e) => setFormData((f) => ({ ...f, email: e.target.value }))}
-            placeholder="john@example.com"
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="phone">Phone</Label>
-          <Input
-            id="phone"
-            value={formData.phone}
-            onChange={(e) => setFormData((f) => ({ ...f, phone: e.target.value }))}
-            placeholder="+1 234 567 8900"
-          />
-        </div>
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="company">Company</Label>
-        <Input
-          id="company"
-          value={formData.company}
-          onChange={(e) => setFormData((f) => ({ ...f, company: e.target.value }))}
-          placeholder="Acme Inc"
-        />
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="address">Address</Label>
-        <Input
-          id="address"
-          value={formData.address}
-          onChange={(e) => setFormData((f) => ({ ...f, address: e.target.value }))}
-          placeholder="123 Main St"
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="grid gap-2">
-          <Label htmlFor="city">City</Label>
-          <Input
-            id="city"
-            value={formData.city}
-            onChange={(e) => setFormData((f) => ({ ...f, city: e.target.value }))}
-            placeholder="New York"
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="country">Country</Label>
-          <Input
-            id="country"
-            value={formData.country}
-            onChange={(e) => setFormData((f) => ({ ...f, country: e.target.value }))}
-            placeholder="USA"
-          />
-        </div>
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="status">Status</Label>
-        <Select value={formData.status} onValueChange={(v) => setFormData((f) => ({ ...f, status: v as "active" | "inactive" | "prospect" }))}>
-          <SelectTrigger id="status">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="inactive">Inactive</SelectItem>
-            <SelectItem value="prospect">Prospect</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="tags">Tags (comma-separated)</Label>
-        <Input
-          id="tags"
-          value={formData.tags}
-          onChange={(e) => setFormData((f) => ({ ...f, tags: e.target.value }))}
-          placeholder="vip, enterprise"
-        />
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="notes">Notes</Label>
-        <Textarea
-          id="notes"
-          value={formData.notes}
-          onChange={(e) => setFormData((f) => ({ ...f, notes: e.target.value }))}
-          placeholder="Additional notes..."
-          rows={3}
-        />
-      </div>
-    </div>
+    <Collapsible open={isOpen} onOpenChange={onToggle}>
+      <CollapsibleTrigger asChild>
+        <Button variant="ghost" className="w-full justify-between px-3 py-2 h-auto">
+          <span className="flex items-center gap-2 text-sm font-medium">
+            {icon} {title}
+            <Badge variant="secondary" className="ml-1 text-xs">{records.length}</Badge>
+          </span>
+          {isOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="px-3 pb-3 space-y-3">
+        {records.map((record) => (
+          <div key={record.id} className="border rounded-md p-3 space-y-2">
+            {editingRecord?.id === record.id ? (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  {fields.map((f) =>
+                    f.type === "textarea" ? (
+                      <div key={f.key} className="col-span-2 space-y-1">
+                        <Label className="text-xs">{f.label}</Label>
+                        <Textarea value={editForm[f.key] || ""} onChange={(e) => setEditForm((p: any) => ({ ...p, [f.key]: e.target.value }))} rows={2} />
+                      </div>
+                    ) : (
+                      <div key={f.key} className="space-y-1">
+                        <Label className="text-xs">{f.label}</Label>
+                        <Input value={editForm[f.key] || ""} onChange={(e) => setEditForm((p: any) => ({ ...p, [f.key]: e.target.value }))} />
+                      </div>
+                    )
+                  )}
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button size="sm" variant="outline" onClick={() => setEditingRecord(null)}>Cancel</Button>
+                  <Button size="sm" onClick={handleSave} disabled={saving}>{saving && <Loader2 className="size-3 animate-spin" />}Save</Button>
+                </div>
+              </>
+            ) : (
+              <div className="flex items-start justify-between">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm flex-1">
+                  {fields.map((f) => {
+                    const val = record[f.key];
+                    if (!val) return null;
+                    return (
+                      <div key={f.key} className={f.type === "textarea" ? "col-span-2" : ""}>
+                        <span className="text-muted-foreground text-xs">{f.label}:</span>{" "}
+                        <span>{val}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex gap-1 shrink-0">
+                  <Button variant="ghost" size="icon" className="size-7" onClick={() => startEdit(record)}><Pencil className="size-3" /></Button>
+                  <Button variant="ghost" size="icon" className="size-7 text-destructive hover:text-destructive" onClick={() => onDelete(type, record.id)}><Trash2 className="size-3" /></Button>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+
+        {editingRecord?.__new && (
+          <div className="border rounded-md p-3 space-y-2 border-dashed">
+            <div className="grid grid-cols-2 gap-2">
+              {fields.map((f) =>
+                f.type === "textarea" ? (
+                  <div key={f.key} className="col-span-2 space-y-1">
+                    <Label className="text-xs">{f.label}</Label>
+                    <Textarea value={editForm[f.key] || ""} onChange={(e) => setEditForm((p: any) => ({ ...p, [f.key]: e.target.value }))} rows={2} />
+                  </div>
+                ) : (
+                  <div key={f.key} className="space-y-1">
+                    <Label className="text-xs">{f.label}</Label>
+                    <Input value={editForm[f.key] || ""} onChange={(e) => setEditForm((p: any) => ({ ...p, [f.key]: e.target.value }))} />
+                  </div>
+                )
+              )}
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button size="sm" variant="outline" onClick={() => setEditingRecord(null)}>Cancel</Button>
+              <Button size="sm" onClick={handleSave} disabled={saving}>{saving && <Loader2 className="size-3 animate-spin" />}Add</Button>
+            </div>
+          </div>
+        )}
+
+        {!editingRecord && (
+          <Button variant="outline" size="sm" className="w-full" onClick={startAdd}>
+            <Plus className="size-3" /> Add {title}
+          </Button>
+        )}
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

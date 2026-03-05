@@ -119,12 +119,15 @@ model Customer {
   brandId      String
   assignedTo   String?
   name         String
+  firstName    String?
+  lastName     String?
   email        String?
   phone        String?
   company      String?
   address      String?
   city         String?
   country      String?
+  interest     String?
   tags         String[] @default([])
   notes        String?
   status       String   @default("active") // active, inactive, prospect
@@ -137,6 +140,12 @@ model Customer {
   tickets    Ticket[]
   activities Activity[]
   deals      Deal[]
+  addresses         CustomerAddress[]
+  jobs              CustomerJob[]
+  education         CustomerEducation[]
+  emergencyContacts CustomerEmergencyContact[]
+  medical           CustomerMedical[]
+  diving            CustomerDiving[]
 
   @@index([brandId])
   @@index([brandId, assignedTo])
@@ -320,6 +329,113 @@ model Notification {
 
   @@index([userId, isRead])
   @@map("notifications")
+}
+
+// ============================================================
+// CUSTOMER EXTENDED DATA
+// ============================================================
+
+model CustomerAddress {
+  id         String   @id @default(cuid())
+  customerId String
+  type       String?
+  street     String?
+  city       String?
+  state      String?
+  postalCode String?
+  country    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@map("customer_addresses")
+}
+
+model CustomerJob {
+  id         String    @id @default(cuid())
+  customerId String
+  company    String?
+  position   String?
+  startDate  String?
+  endDate    String?
+  notes      String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@map("customer_jobs")
+}
+
+model CustomerEducation {
+  id          String   @id @default(cuid())
+  customerId  String
+  institution String?
+  degree      String?
+  field       String?
+  startYear   String?
+  endYear     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@map("customer_education")
+}
+
+model CustomerEmergencyContact {
+  id           String   @id @default(cuid())
+  customerId   String
+  name         String?
+  relationship String?
+  phone        String?
+  email        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@map("customer_emergency_contacts")
+}
+
+model CustomerMedical {
+  id          String   @id @default(cuid())
+  customerId  String
+  bloodType   String?
+  allergies   String?
+  conditions  String?
+  medications String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@map("customer_medical")
+}
+
+model CustomerDiving {
+  id            String   @id @default(cuid())
+  customerId    String
+  certLevel     String?
+  licenseNumber String?
+  diveCount     Int?
+  lastDiveDate  String?
+  instructor    String?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@map("customer_diving")
 }
 
 // ============================================================
