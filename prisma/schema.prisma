@@ -123,11 +123,16 @@ model Customer {
   lastName     String?
   email        String?
   phone        String?
+  source       String?
+  stage        String?  @default("new") // new, contacted, qualified, converted, lost
+  interest     String?
+  birthDate    String?
+  idCard       String?
+  customerAddress String?
   company      String?
   address      String?
   city         String?
   country      String?
-  interest     String?
   tags         String[] @default([])
   notes        String?
   status       String   @default("active") // active, inactive, prospect

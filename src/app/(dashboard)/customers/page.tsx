@@ -78,8 +78,12 @@ interface Customer {
   lastName: string | null;
   email: string | null;
   phone: string | null;
-  company: string | null;
+  source: string | null;
+  stage: string | null;
   interest: string | null;
+  birthDate: string | null;
+  idCard: string | null;
+  customerAddress: string | null;
   status: "active" | "inactive" | "prospect";
   tags: string[];
   notes: string | null;
@@ -100,25 +104,47 @@ const STATUS_OPTIONS = [
   { value: "prospect", label: "Prospect" },
 ] as const;
 
+interface SourceOption {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
+
+const CUSTOMER_STAGES = [
+  { value: "new", label: "New" },
+  { value: "contacted", label: "Contacted" },
+  { value: "qualified", label: "Qualified" },
+  { value: "converted", label: "Converted" },
+  { value: "lost", label: "Lost" },
+] as const;
+
 interface CustomerForm {
+  source: string | null;
+  stage: string;
   firstName: string;
   lastName: string;
   phone: string;
   email: string;
   interest: string;
   status: "active" | "inactive" | "prospect";
-  tags: string;
+  birthDate: string;
+  idCard: string;
+  customerAddress: string;
   notes: string;
 }
 
 const EMPTY_FORM: CustomerForm = {
+  source: null,
+  stage: "new",
   firstName: "",
   lastName: "",
   phone: "",
   email: "",
   interest: "",
   status: "active",
-  tags: "",
+  birthDate: "",
+  idCard: "",
+  customerAddress: "",
   notes: "",
 };
 
@@ -167,6 +193,7 @@ export default function CustomersPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
 
+  const [sourceOptions, setSourceOptions] = useState<SourceOption[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [formData, setFormData] = useState<CustomerForm>(EMPTY_FORM);
@@ -226,6 +253,15 @@ export default function CustomersPage() {
 
   useEffect(() => { fetchCustomers(); }, [fetchCustomers]);
 
+  const fetchSources = useCallback(async () => {
+    try {
+      const res = await fetch("/api/sources?active=true");
+      if (!res.ok) return;
+      const data = await res.json();
+      setSourceOptions(data.sources);
+    } catch {}
+  }, []);
+
   const fetchExtras = useCallback(async (customerId: string) => {
     setExtrasLoading(true);
     try {
@@ -245,22 +281,28 @@ export default function CustomersPage() {
     setFormData(EMPTY_FORM);
     setExtras({ addresses: [], jobs: [], education: [], emergencyContacts: [], medical: [], diving: [] });
     setOpenSections(new Set());
+    fetchSources();
     setDialogOpen(true);
   };
 
   const openEditDialog = (customer: Customer) => {
     setEditingCustomer(customer);
     setFormData({
+      source: (customer as any).source || null,
+      stage: (customer as any).stage || "new",
       firstName: customer.firstName || customer.name?.split(" ")[0] || "",
       lastName: customer.lastName || customer.name?.split(" ").slice(1).join(" ") || "",
       phone: customer.phone || "",
       email: customer.email || "",
       interest: customer.interest || "",
       status: customer.status,
-      tags: (customer.tags || []).join(", "),
+      birthDate: (customer as any).birthDate || "",
+      idCard: (customer as any).idCard || "",
+      customerAddress: (customer as any).customerAddress || "",
       notes: customer.notes || "",
     });
     setOpenSections(new Set());
+    fetchSources();
     setDialogOpen(true);
     fetchExtras(customer.id);
   };
@@ -269,16 +311,19 @@ export default function CustomersPage() {
     if (!activeBrand?.id) { toast.error("No brand selected"); return; }
     setFormSubmitting(true);
     const autoName = [formData.firstName.trim(), formData.lastName.trim()].filter(Boolean).join(" ") || "Unnamed";
-    const tags = formData.tags.split(",").map((t) => t.trim()).filter(Boolean);
     const payload = {
       name: autoName,
       firstName: formData.firstName.trim() || null,
       lastName: formData.lastName.trim() || null,
       email: formData.email.trim() || null,
       phone: formData.phone.trim() || null,
+      source: formData.source || null,
+      stage: formData.stage || null,
       interest: formData.interest.trim() || null,
+      birthDate: formData.birthDate.trim() || null,
+      idCard: formData.idCard.trim() || null,
+      customerAddress: formData.customerAddress.trim() || null,
       status: formData.status,
-      tags,
       notes: formData.notes || null,
     };
 
@@ -450,12 +495,13 @@ export default function CustomersPage() {
             <>
               <Table>
                 <TableHeader>
-                  <TableRow>
+                    <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Phone</TableHead>
                     <TableHead>Email</TableHead>
+                    <TableHead>Source</TableHead>
+                    <TableHead>Stage</TableHead>
                     <TableHead>Interest</TableHead>
-                    <TableHead>Status</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
@@ -470,10 +516,9 @@ export default function CustomersPage() {
                       </TableCell>
                       <TableCell className="text-muted-foreground">{c.phone || "—"}</TableCell>
                       <TableCell className="text-muted-foreground">{c.email || "—"}</TableCell>
+                      <TableCell>{c.source ? <Badge variant="outline" className="text-xs">{c.source}</Badge> : "—"}</TableCell>
+                      <TableCell>{c.stage ? <Badge variant="secondary" className="text-xs capitalize">{c.stage}</Badge> : "—"}</TableCell>
                       <TableCell className="text-muted-foreground text-sm">{c.interest || "—"}</TableCell>
-                      <TableCell>
-                        <Badge variant={c.status === "active" ? "default" : c.status === "inactive" ? "secondary" : "outline"}>{c.status}</Badge>
-                      </TableCell>
                       <TableCell className="text-muted-foreground text-sm">{format(new Date(c.createdAt), "MMM d, yyyy")}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
@@ -510,19 +555,28 @@ export default function CustomersPage() {
             <DialogTitle>{editingCustomer ? "Edit Customer" : "Add Customer"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            {/* Status */}
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={formData.status} onValueChange={(v) => setFormData((f) => ({ ...f, status: v as CustomerForm["status"] }))}>
-                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="prospect">Prospect</SelectItem>
-                </SelectContent>
-              </Select>
+            {/* Section 1 */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Source</Label>
+                <Select value={formData.source ?? "__none__"} onValueChange={(v) => setFormData((f) => ({ ...f, source: v === "__none__" ? null : v }))}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Select source" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">None</SelectItem>
+                    {sourceOptions.map((opt) => (<SelectItem key={opt.id} value={opt.name}>{opt.name}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Stage</Label>
+                <Select value={formData.stage} onValueChange={(v) => setFormData((f) => ({ ...f, stage: v }))}>
+                  <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CUSTOMER_STAGES.map((s) => (<SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            {/* Name row */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>First Name</Label>
@@ -533,7 +587,6 @@ export default function CustomersPage() {
                 <Input value={formData.lastName} onChange={(e) => setFormData((f) => ({ ...f, lastName: e.target.value }))} placeholder="Last name" />
               </div>
             </div>
-            {/* Contact row */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Phone</Label>
@@ -544,20 +597,31 @@ export default function CustomersPage() {
                 <Input type="email" value={formData.email} onChange={(e) => setFormData((f) => ({ ...f, email: e.target.value }))} placeholder="Email address" />
               </div>
             </div>
-            {/* Interest */}
             <div className="space-y-2">
               <Label>Interest</Label>
               <Input value={formData.interest} onChange={(e) => setFormData((f) => ({ ...f, interest: e.target.value }))} placeholder="What are they interested in?" />
             </div>
-            {/* Tags */}
-            <div className="space-y-2">
-              <Label>Tags (comma-separated)</Label>
-              <Input value={formData.tags} onChange={(e) => setFormData((f) => ({ ...f, tags: e.target.value }))} placeholder="vip, enterprise" />
-            </div>
-            {/* Notes */}
             <div className="space-y-2">
               <Label>Notes</Label>
-              <Textarea value={formData.notes} onChange={(e) => setFormData((f) => ({ ...f, notes: e.target.value }))} placeholder="Additional notes..." rows={3} />
+              <Textarea value={formData.notes} onChange={(e) => setFormData((f) => ({ ...f, notes: e.target.value }))} placeholder="Additional notes..." rows={2} />
+            </div>
+
+            {/* Section 2: Customer Information */}
+            <Separator />
+            <p className="text-sm font-medium">Customer Information</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Date of Birth</Label>
+                <Input type="date" value={formData.birthDate} onChange={(e) => setFormData((f) => ({ ...f, birthDate: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>ID Card / Passport</Label>
+                <Input value={formData.idCard} onChange={(e) => setFormData((f) => ({ ...f, idCard: e.target.value }))} placeholder="ID Card or Passport number" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Address</Label>
+              <Textarea value={formData.customerAddress} onChange={(e) => setFormData((f) => ({ ...f, customerAddress: e.target.value }))} placeholder="Full address" rows={2} />
             </div>
 
             {/* Sub-forms (only in edit mode) */}
