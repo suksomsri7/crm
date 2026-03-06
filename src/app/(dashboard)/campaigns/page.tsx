@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,10 +66,13 @@ interface Campaign {
   content: string | null;
   targetSegment: unknown;
   budget: number | null;
+  startDate: string | null;
+  endDate: string | null;
   scheduledAt: string | null;
   sentAt: string | null;
   stats: { sent?: number; opened?: number; clicked?: number; converted?: number } | null;
   createdAt: string;
+  _count?: { members: number; stages: number };
 }
 
 interface PaginationInfo {
@@ -92,16 +96,17 @@ const TYPE_OPTIONS = [
   { value: "email", label: "Email" },
   { value: "sms", label: "SMS" },
   { value: "social", label: "Social" },
+  { value: "event", label: "Event" },
+  { value: "custom", label: "Custom" },
 ] as const;
 
 const EMPTY_FORM = {
   name: "",
-  type: "email" as "email" | "sms" | "social",
   subject: "",
   content: "",
-  budget: "",
-  scheduledAt: "",
   targetSegment: "",
+  startDate: "",
+  endDate: "",
 };
 
 function statusBadgeVariant(status: string) {
@@ -156,18 +161,9 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-function toLocalDatetimeValue(iso: string | null | undefined): string {
-  if (!iso) return "";
-  try {
-    const d = new Date(iso);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  } catch {
-    return "";
-  }
-}
 
 export default function CampaignsPage() {
+  const router = useRouter();
   const { status: sessionStatus } = useSession();
   const { activeBrand, isSuperAdmin } = useBrand();
 
@@ -248,29 +244,18 @@ export default function CampaignsPage() {
 
     setFormSubmitting(true);
     try {
-      let targetSegment = null;
-      if (formData.targetSegment.trim()) {
-        try {
-          targetSegment = JSON.parse(formData.targetSegment);
-        } catch {
-          toast.error("Target segment must be valid JSON");
-          setFormSubmitting(false);
-          return;
-        }
-      }
-
       const res = await fetch("/api/campaigns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           brandId,
           name: formData.name.trim(),
-          type: formData.type,
+          type: "custom",
           subject: formData.subject || null,
           content: formData.content || null,
-          budget: formData.budget ? parseFloat(formData.budget) : null,
-          scheduledAt: formData.scheduledAt ? new Date(formData.scheduledAt).toISOString() : null,
-          targetSegment,
+          targetSegment: formData.targetSegment.trim() || null,
+          startDate: formData.startDate || null,
+          endDate: formData.endDate || null,
         }),
       });
       if (!res.ok) {
@@ -296,28 +281,16 @@ export default function CampaignsPage() {
 
     setFormSubmitting(true);
     try {
-      let targetSegment = null;
-      if (formData.targetSegment.trim()) {
-        try {
-          targetSegment = JSON.parse(formData.targetSegment);
-        } catch {
-          toast.error("Target segment must be valid JSON");
-          setFormSubmitting(false);
-          return;
-        }
-      }
-
       const res = await fetch(`/api/campaigns/${editingCampaign.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: formData.name.trim(),
-          type: formData.type,
           subject: formData.subject || null,
           content: formData.content || null,
-          budget: formData.budget ? parseFloat(formData.budget) : null,
-          scheduledAt: formData.scheduledAt ? new Date(formData.scheduledAt).toISOString() : null,
-          targetSegment,
+          targetSegment: formData.targetSegment.trim() || null,
+          startDate: formData.startDate || null,
+          endDate: formData.endDate || null,
         }),
       });
       if (!res.ok) {
@@ -363,12 +336,11 @@ export default function CampaignsPage() {
     setEditingCampaign(campaign);
     setFormData({
       name: campaign.name,
-      type: campaign.type as "email" | "sms" | "social",
       subject: campaign.subject || "",
       content: campaign.content || "",
-      budget: campaign.budget != null ? String(campaign.budget) : "",
-      scheduledAt: toLocalDatetimeValue(campaign.scheduledAt),
-      targetSegment: campaign.targetSegment ? JSON.stringify(campaign.targetSegment, null, 2) : "",
+      targetSegment: typeof campaign.targetSegment === "string" ? campaign.targetSegment : campaign.targetSegment ? JSON.stringify(campaign.targetSegment) : "",
+      startDate: campaign.startDate ? new Date(campaign.startDate).toISOString().split("T")[0] : "",
+      endDate: campaign.endDate ? new Date(campaign.endDate).toISOString().split("T")[0] : "",
     });
     setEditDialogOpen(true);
   };
@@ -487,20 +459,19 @@ export default function CampaignsPage() {
                     <TableHead>Name</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Members</TableHead>
                     <TableHead>Budget</TableHead>
                     <TableHead>Scheduled At</TableHead>
-                    <TableHead>Stats</TableHead>
                     <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {campaigns.map((c) => {
-                    const stats = c.stats as Campaign["stats"];
                     return (
                       <TableRow key={c.id}>
                         <TableCell>
-                          <div>
-                            <p className="font-medium">{c.name}</p>
+                          <div className="cursor-pointer" onClick={() => router.push(`/campaigns/${c.id}`)}>
+                            <p className="font-medium hover:underline">{c.name}</p>
                             {c.subject && (
                               <p className="text-sm text-muted-foreground truncate max-w-[200px]">
                                 {c.subject}
@@ -521,24 +492,16 @@ export default function CampaignsPage() {
                             {c.status}
                           </Badge>
                         </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {c._count?.members ?? 0}
+                        </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {c.budget != null ? `$${c.budget.toLocaleString()}` : "—"}
+                          {c.budget != null ? `฿${c.budget.toLocaleString()}` : "—"}
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">
                           {c.scheduledAt
                             ? format(new Date(c.scheduledAt), "MMM d, yyyy HH:mm")
                             : "—"}
-                        </TableCell>
-                        <TableCell>
-                          {stats ? (
-                            <div className="text-xs text-muted-foreground space-y-0.5">
-                              {stats.sent != null && <div>Sent: {stats.sent}</div>}
-                              {stats.opened != null && <div>Opened: {stats.opened}</div>}
-                              {stats.clicked != null && <div>Clicked: {stats.clicked}</div>}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">—</span>
-                          )}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
@@ -689,40 +652,8 @@ function CampaignFormFields({
           id="campaign-name"
           value={formData.name}
           onChange={(e) => setFormData((f) => ({ ...f, name: e.target.value }))}
-          placeholder="Spring Sale Campaign"
+          placeholder="Summer Sale Campaign"
         />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="grid gap-2">
-          <Label htmlFor="campaign-type">Type *</Label>
-          <Select
-            value={formData.type}
-            onValueChange={(v) =>
-              setFormData((f) => ({ ...f, type: v as "email" | "sms" | "social" }))
-            }
-          >
-            <SelectTrigger id="campaign-type">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="email">Email</SelectItem>
-              <SelectItem value="sms">SMS</SelectItem>
-              <SelectItem value="social">Social</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="campaign-budget">Budget</Label>
-          <Input
-            id="campaign-budget"
-            type="number"
-            min="0"
-            step="0.01"
-            value={formData.budget}
-            onChange={(e) => setFormData((f) => ({ ...f, budget: e.target.value }))}
-            placeholder="1000"
-          />
-        </div>
       </div>
       <div className="grid gap-2">
         <Label htmlFor="campaign-subject">Subject</Label>
@@ -730,7 +661,7 @@ function CampaignFormFields({
           id="campaign-subject"
           value={formData.subject}
           onChange={(e) => setFormData((f) => ({ ...f, subject: e.target.value }))}
-          placeholder="Don't miss our Spring Sale!"
+          placeholder="Campaign subject line"
         />
       </div>
       <div className="grid gap-2">
@@ -743,24 +674,34 @@ function CampaignFormFields({
           rows={4}
         />
       </div>
-      <div className="grid gap-2">
-        <Label htmlFor="campaign-scheduled">Scheduled At</Label>
-        <Input
-          id="campaign-scheduled"
-          type="datetime-local"
-          value={formData.scheduledAt}
-          onChange={(e) => setFormData((f) => ({ ...f, scheduledAt: e.target.value }))}
-        />
+      <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-2">
+          <Label htmlFor="campaign-start">Start Date</Label>
+          <Input
+            id="campaign-start"
+            type="date"
+            value={formData.startDate}
+            onChange={(e) => setFormData((f) => ({ ...f, startDate: e.target.value }))}
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="campaign-end">End Date</Label>
+          <Input
+            id="campaign-end"
+            type="date"
+            value={formData.endDate}
+            onChange={(e) => setFormData((f) => ({ ...f, endDate: e.target.value }))}
+          />
+        </div>
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="campaign-segment">Target Segment (JSON)</Label>
+        <Label htmlFor="campaign-segment">Target Segment (Prompt)</Label>
         <Textarea
           id="campaign-segment"
           value={formData.targetSegment}
           onChange={(e) => setFormData((f) => ({ ...f, targetSegment: e.target.value }))}
-          placeholder='{"tags": ["vip"], "status": "active"}'
+          placeholder="Describe your target audience, e.g. VIP customers who purchased in the last 30 days..."
           rows={3}
-          className="font-mono text-sm"
         />
       </div>
     </div>

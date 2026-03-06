@@ -5,8 +5,11 @@ import { z } from "zod";
 
 const updateSchema = z.object({
   title: z.string().min(1).optional(),
+  titlePrefix: z.string().optional().nullable(),
   firstName: z.string().optional().nullable(),
   lastName: z.string().optional().nullable(),
+  nickname: z.string().optional().nullable(),
+  sex: z.string().optional().nullable(),
   phone: z.string().optional().nullable(),
   email: z.string().optional().nullable(),
   interest: z.string().optional().nullable(),
@@ -14,6 +17,13 @@ const updateSchema = z.object({
   source: z.string().optional().nullable(),
   status: z.enum(["new", "contacted", "qualified", "unqualified"]).optional(),
   stage: z.enum(["prospecting", "qualification", "proposal", "negotiation", "closed_won", "closed_lost"]).optional(),
+  birthDate: z.string().optional().nullable(),
+  idCard: z.string().optional().nullable(),
+  address: z.string().optional().nullable(),
+  city: z.string().optional().nullable(),
+  state: z.string().optional().nullable(),
+  postalCode: z.string().optional().nullable(),
+  country: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   assignedToId: z.string().optional().nullable(),
 });

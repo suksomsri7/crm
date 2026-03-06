@@ -5,8 +5,11 @@ import { z } from "zod";
 
 const leadSchema = z.object({
   title: z.string().min(1),
+  titlePrefix: z.string().optional().nullable(),
   firstName: z.string().optional().nullable(),
   lastName: z.string().optional().nullable(),
+  nickname: z.string().optional().nullable(),
+  sex: z.string().optional().nullable(),
   phone: z.string().optional().nullable(),
   email: z.string().optional().nullable(),
   interest: z.string().optional().nullable(),
@@ -14,6 +17,13 @@ const leadSchema = z.object({
   source: z.string().optional().nullable(),
   status: z.enum(["new", "contacted", "qualified", "unqualified"]).optional().default("new"),
   stage: z.enum(["prospecting", "qualification", "proposal", "negotiation", "closed_won", "closed_lost"]).optional().default("prospecting"),
+  birthDate: z.string().optional().nullable(),
+  idCard: z.string().optional().nullable(),
+  address: z.string().optional().nullable(),
+  city: z.string().optional().nullable(),
+  state: z.string().optional().nullable(),
+  postalCode: z.string().optional().nullable(),
+  country: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   assignedToId: z.string().optional().nullable(),
 });
@@ -52,7 +62,7 @@ export async function GET(req: NextRequest) {
     ];
   }
   if (stage) where.stage = stage;
-  if (status) where.status = status;
+  where.status = status ? status : { not: "converted" };
 
   const [leads, total] = await Promise.all([
     db.lead.findMany({

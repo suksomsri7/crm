@@ -29,6 +29,14 @@ model User {
   assignedLeads Lead[]         @relation("AssignedTo")
   createdLeads  Lead[]         @relation("CreatedBy")
   tickets       Ticket[]       @relation("TicketAssignee")
+  createdRewards CustomerReward[] @relation("RewardCreatedBy")
+  createdVouchers    Voucher[]          @relation("VoucherCreatedBy")
+  assignedVouchers   CustomerVoucher[]  @relation("VoucherAssignedBy")
+  openedDeals           Deal[]             @relation("DealOpenedBy")
+  closedDeals           Deal[]             @relation("DealClosedBy")
+  createdCampaigns      Campaign[]         @relation("CampaignCreatedBy")
+  addedCampaignMembers  CampaignMember[]   @relation("CampaignMemberAddedBy")
+  campaignComments      CampaignComment[]  @relation("CampaignCommentUser")
 
   @@map("users")
 }
@@ -50,6 +58,7 @@ model Brand {
   deals       Deal[]
   campaigns   Campaign[]
   tickets     Ticket[]
+  vouchers    Voucher[]
   auditLogs   AuditLog[]
   activities  Activity[]
   notifications Notification[]
@@ -119,8 +128,11 @@ model Customer {
   brandId      String
   assignedTo   String?
   name         String
+  titlePrefix  String?
   firstName    String?
   lastName     String?
+  nickname     String?
+  sex          String?
   email        String?
   phone        String?
   source       String?
@@ -129,10 +141,12 @@ model Customer {
   birthDate    String?
   idCard       String?
   customerAddress String?
-  company      String?
   address      String?
   city         String?
+  state        String?
+  postalCode   String?
   country      String?
+  company      String?
   tags         String[] @default([])
   notes        String?
   status       String   @default("active") // active, inactive, prospect
@@ -151,6 +165,11 @@ model Customer {
   emergencyContacts CustomerEmergencyContact[]
   medical           CustomerMedical[]
   diving            CustomerDiving[]
+  socials           CustomerSocial[]
+  files             CustomerFile[]
+  rewards           CustomerReward[]
+  customerVouchers  CustomerVoucher[]
+  campaignMembers   CampaignMember[]
 
   @@index([brandId])
   @@index([brandId, assignedTo])
@@ -169,14 +188,24 @@ model Lead {
   assignedToId String?
   createdById  String?
   title        String
+  titlePrefix  String?
   firstName    String?
   lastName     String?
+  nickname     String?
+  sex          String?
   phone        String?
   email        String?
   interest     String?
   source       String?
   status       String   @default("new") // new, contacted, qualified, unqualified
   stage        String   @default("prospecting") // prospecting, qualification, proposal, negotiation, closed_won, closed_lost
+  birthDate    String?
+  idCard       String?
+  address      String?
+  city         String?
+  state        String?
+  postalCode   String?
+  country      String?
   notes        String?
   metadata     Json?
   createdAt    DateTime @default(now())
@@ -188,6 +217,15 @@ model Lead {
   createdBy  User?     @relation("CreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   deals      Deal[]
   activities Activity[]
+  addresses         CustomerAddress[]
+  jobs              CustomerJob[]
+  education         CustomerEducation[]
+  emergencyContacts CustomerEmergencyContact[]
+  medical           CustomerMedical[]
+  diving            CustomerDiving[]
+  socials           CustomerSocial[]
+  files             CustomerFile[]
+  campaignMembers   CampaignMember[]
 
   @@index([brandId])
   @@index([brandId, stage])
@@ -200,11 +238,14 @@ model Deal {
   brandId     String
   leadId      String?
   customerId  String?
+  openedById  String?
+  closedById  String?
   title       String
   value       Float
-  stage       String   @default("proposal") // proposal, negotiation, contract, closed_won, closed_lost
+  stage       String   @default("proposal")
   probability Int      @default(50)
   expectedCloseDate DateTime?
+  openedAt    DateTime @default(now())
   closedAt    DateTime?
   notes       String?
   createdAt   DateTime @default(now())
@@ -213,6 +254,8 @@ model Deal {
   brand    Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
   lead     Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
   customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  openedBy User?     @relation("DealOpenedBy", fields: [openedById], references: [id], onDelete: SetNull)
+  closedBy User?     @relation("DealClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
 
   @@index([brandId])
   @@index([brandId, stage])
@@ -226,23 +269,122 @@ model Deal {
 model Campaign {
   id          String   @id @default(cuid())
   brandId     String
+  createdById String?
   name        String
-  type        String   // email, sms, social
+  type        String   // email, sms, social, event, custom
   status      String   @default("draft") // draft, scheduled, running, completed, paused
+  description String?
   subject     String?
   content     String?
   targetSegment Json?
   budget      Float?
+  startDate   DateTime?
+  endDate     DateTime?
   scheduledAt DateTime?
   sentAt      DateTime?
-  stats       Json?    // { sent, opened, clicked, converted }
+  stats       Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  brand     Brand  @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  createdBy User?  @relation("CampaignCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  stages    CampaignStage[]
+  members   CampaignMember[]
 
   @@index([brandId])
   @@map("campaigns")
+}
+
+model CampaignStage {
+  id         String   @id @default(cuid())
+  campaignId String
+  name       String
+  color      String?
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  campaign Campaign         @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  members  CampaignMember[]
+
+  @@index([campaignId])
+  @@map("campaign_stages")
+}
+
+model CampaignMember {
+  id          String    @id @default(cuid())
+  campaignId  String
+  stageId     String?
+  customerId  String?
+  leadId      String?
+  status      String    @default("added")
+  addedVia    String    @default("add") // add, import, ai
+  notes       String?
+  description String?
+  priority    String    @default("medium")
+  dueDate     DateTime?
+  labels      Json?
+  addedById   String?
+  addedAt     DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  campaign    Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  stage       CampaignStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
+  customer    Customer?      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  lead        Lead?          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  addedBy     User?          @relation("CampaignMemberAddedBy", fields: [addedById], references: [id], onDelete: SetNull)
+  checklists  CampaignChecklist[]
+  comments    CampaignComment[]
+  attachments CampaignAttachment[]
+
+  @@unique([campaignId, customerId])
+  @@unique([campaignId, leadId])
+  @@index([campaignId])
+  @@index([stageId])
+  @@index([customerId])
+  @@index([leadId])
+  @@map("campaign_members")
+}
+
+model CampaignChecklist {
+  id        String   @id @default(cuid())
+  memberId  String
+  text      String
+  done      Boolean  @default(false)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  member CampaignMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId])
+  @@map("campaign_checklists")
+}
+
+model CampaignComment {
+  id        String   @id @default(cuid())
+  memberId  String
+  userId    String
+  text      String
+  createdAt DateTime @default(now())
+
+  member CampaignMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  user   User           @relation("CampaignCommentUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([memberId])
+  @@map("campaign_comments")
+}
+
+model CampaignAttachment {
+  id        String   @id @default(cuid())
+  memberId  String
+  fileName  String
+  fileUrl   String
+  fileSize  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  member CampaignMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId])
+  @@map("campaign_attachments")
 }
 
 // ============================================================
@@ -342,7 +484,8 @@ model Notification {
 
 model CustomerAddress {
   id         String   @id @default(cuid())
-  customerId String
+  customerId String?
+  leadId     String?
   type       String?
   street     String?
   city       String?
@@ -352,15 +495,18 @@ model CustomerAddress {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  lead     Lead?     @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
   @@index([customerId])
+  @@index([leadId])
   @@map("customer_addresses")
 }
 
 model CustomerJob {
   id         String    @id @default(cuid())
-  customerId String
+  customerId String?
+  leadId     String?
   company    String?
   position   String?
   startDate  String?
@@ -369,15 +515,18 @@ model CustomerJob {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  lead     Lead?     @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
   @@index([customerId])
+  @@index([leadId])
   @@map("customer_jobs")
 }
 
 model CustomerEducation {
   id          String   @id @default(cuid())
-  customerId  String
+  customerId  String?
+  leadId      String?
   institution String?
   degree      String?
   field       String?
@@ -386,15 +535,18 @@ model CustomerEducation {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  lead     Lead?     @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
   @@index([customerId])
+  @@index([leadId])
   @@map("customer_education")
 }
 
 model CustomerEmergencyContact {
   id           String   @id @default(cuid())
-  customerId   String
+  customerId   String?
+  leadId       String?
   name         String?
   relationship String?
   phone        String?
@@ -402,15 +554,18 @@ model CustomerEmergencyContact {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  lead     Lead?     @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
   @@index([customerId])
+  @@index([leadId])
   @@map("customer_emergency_contacts")
 }
 
 model CustomerMedical {
   id          String   @id @default(cuid())
-  customerId  String
+  customerId  String?
+  leadId      String?
   bloodType   String?
   allergies   String?
   conditions  String?
@@ -419,15 +574,18 @@ model CustomerMedical {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  lead     Lead?     @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
   @@index([customerId])
+  @@index([leadId])
   @@map("customer_medical")
 }
 
 model CustomerDiving {
   id            String   @id @default(cuid())
-  customerId    String
+  customerId    String?
+  leadId        String?
   certLevel     String?
   licenseNumber String?
   diveCount     Int?
@@ -437,10 +595,134 @@ model CustomerDiving {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  lead     Lead?     @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
   @@index([customerId])
+  @@index([leadId])
   @@map("customer_diving")
+}
+
+model CustomerSocial {
+  id         String   @id @default(cuid())
+  customerId String?
+  leadId     String?
+  platform   String?
+  handle     String?
+  url        String?
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  lead     Lead?     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@index([leadId])
+  @@map("customer_socials")
+}
+
+model CustomerFile {
+  id         String   @id @default(cuid())
+  customerId String?
+  leadId     String?
+  fileName   String
+  fileUrl    String
+  fileType   String?
+  fileSize   Int?
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  lead     Lead?     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@index([leadId])
+  @@map("customer_files")
+}
+
+model CustomerReward {
+  id          String   @id @default(cuid())
+  customerId  String
+  type        String   // point
+  amount      Int
+  notes       String?
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  customer  Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  createdBy User?    @relation("RewardCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([customerId])
+  @@index([customerId, type])
+  @@map("customer_rewards")
+}
+
+model Voucher {
+  id          String    @id @default(cuid())
+  brandId     String
+  name        String
+  code        String?
+  type        String    @default("fixed_amount") // fixed_amount, percentage, free_item
+  value       Float?
+  description String?
+  coverUrl    String?
+  minPurchase Float?
+  maxDiscount Float?
+  usageLimit  Int?
+  usedCount   Int       @default(0)
+  startDate   DateTime?
+  expiryDate  DateTime?
+  status      String    @default("active") // active, inactive, expired
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  brand     Brand  @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  createdBy User?  @relation("VoucherCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  customerVouchers CustomerVoucher[]
+  images           VoucherImage[]
+
+  @@index([brandId])
+  @@index([brandId, status])
+  @@index([code])
+  @@map("vouchers")
+}
+
+model VoucherImage {
+  id        String   @id @default(cuid())
+  voucherId String
+  fileName  String
+  fileUrl   String
+  fileSize  Int?
+  isCover   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  voucher Voucher @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+
+  @@index([voucherId])
+  @@map("voucher_images")
+}
+
+model CustomerVoucher {
+  id           String    @id @default(cuid())
+  customerId   String
+  voucherId    String
+  quantity     Int       @default(1)
+  status       String    @default("assigned") // assigned, used, expired
+  assignedById String?
+  usedAt       DateTime?
+  notes        String?
+  createdAt    DateTime  @default(now())
+
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  voucher    Voucher  @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  assignedBy User?    @relation("VoucherAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  @@index([customerId])
+  @@index([voucherId])
+  @@map("customer_vouchers")
 }
 
 // ============================================================

@@ -65,6 +65,15 @@ import {
   AlertTriangle,
   Heart,
   Waves,
+  MessageCircle,
+  FileText,
+  Image as ImageIcon,
+  X,
+  Gift,
+  Star,
+  HandCoins,
+  Megaphone,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useBrand } from "@/components/providers/brand-provider";
@@ -74,8 +83,11 @@ import { format } from "date-fns";
 interface Customer {
   id: string;
   name: string;
+  titlePrefix: string | null;
   firstName: string | null;
   lastName: string | null;
+  nickname: string | null;
+  sex: string | null;
   email: string | null;
   phone: string | null;
   source: string | null;
@@ -84,6 +96,11 @@ interface Customer {
   birthDate: string | null;
   idCard: string | null;
   customerAddress: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  postalCode: string | null;
+  country: string | null;
   status: "active" | "inactive" | "prospect";
   tags: string[];
   notes: string | null;
@@ -118,33 +135,62 @@ const CUSTOMER_STAGES = [
   { value: "lost", label: "Lost" },
 ] as const;
 
+const TITLE_PREFIX_OPTIONS = [
+  { value: "mr", label: "Mr." },
+  { value: "mrs", label: "Mrs." },
+  { value: "ms", label: "Ms." },
+  { value: "miss", label: "Miss" },
+  { value: "dr", label: "Dr." },
+  { value: "prof", label: "Prof." },
+] as const;
+
+const SEX_OPTIONS = [
+  { value: "male", label: "Male" },
+  { value: "female", label: "Female" },
+  { value: "other", label: "Other" },
+] as const;
+
 interface CustomerForm {
   source: string | null;
   stage: string;
+  titlePrefix: string | null;
   firstName: string;
   lastName: string;
+  nickname: string;
+  sex: string | null;
   phone: string;
   email: string;
   interest: string;
   status: "active" | "inactive" | "prospect";
   birthDate: string;
   idCard: string;
-  customerAddress: string;
+  address: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
   notes: string;
 }
 
 const EMPTY_FORM: CustomerForm = {
   source: null,
   stage: "new",
+  titlePrefix: null,
   firstName: "",
   lastName: "",
+  nickname: "",
+  sex: null,
   phone: "",
   email: "",
   interest: "",
   status: "active",
   birthDate: "",
   idCard: "",
-  customerAddress: "",
+  address: "",
+  city: "",
+  state: "",
+  postalCode: "",
+  country: "",
   notes: "",
 };
 
@@ -156,6 +202,38 @@ interface EmergencyContactRecord { id?: string; name: string; relationship: stri
 interface MedicalRecord { id?: string; bloodType: string; allergies: string; conditions: string; medications: string; notes: string; }
 interface DivingRecord { id?: string; certLevel: string; licenseNumber: string; diveCount: string; lastDiveDate: string; instructor: string; notes: string; }
 
+interface SocialRecord { id?: string; platform: string; handle: string; url: string; notes: string; }
+interface FileRecord { id?: string; fileName: string; fileUrl: string; fileType: string; fileSize: number; notes: string; }
+interface RewardRecord { id: string; type: string; amount: number; notes: string | null; createdAt: string; createdBy: { id: string; fullName: string } | null; }
+interface RewardsData { rewards: RewardRecord[]; totalVouchers: number; totalPoints: number; }
+interface VoucherOption { id: string; name: string; code: string | null; type: string; value: number | null; status: string; expiryDate: string | null; }
+interface CustomerVoucherRecord { id: string; quantity: number; status: string; notes: string | null; createdAt: string; voucher: { id: string; name: string; code: string | null; type: string; value: number | null; status: string; expiryDate: string | null; coverUrl: string | null }; assignedBy: { id: string; fullName: string } | null; }
+
+interface CustomerDealRecord {
+  id: string;
+  title: string;
+  value: number;
+  stage: string;
+  notes: string | null;
+  openedAt: string;
+  closedAt: string | null;
+  createdAt: string;
+  lead: { id: string; title: string; firstName: string | null; lastName: string | null } | null;
+  openedBy: { id: string; fullName: string } | null;
+  closedBy: { id: string; fullName: string } | null;
+}
+
+interface CustomerCampaignRecord {
+  id: string;
+  status: string;
+  addedVia: string;
+  notes: string | null;
+  addedAt: string;
+  campaign: { id: string; name: string; type: string; status: string; startDate: string | null; endDate: string | null };
+  stage: { id: string; name: string; color: string | null } | null;
+  addedBy: { id: string; fullName: string } | null;
+}
+
 interface ExtrasData {
   addresses: AddressRecord[];
   jobs: JobRecord[];
@@ -163,6 +241,8 @@ interface ExtrasData {
   emergencyContacts: EmergencyContactRecord[];
   medical: MedicalRecord[];
   diving: DivingRecord[];
+  socials: SocialRecord[];
+  files: FileRecord[];
 }
 
 const EMPTY_ADDRESS: AddressRecord = { type: "", street: "", city: "", state: "", postalCode: "", country: "" };
@@ -171,6 +251,9 @@ const EMPTY_EDUCATION: EducationRecord = { institution: "", degree: "", field: "
 const EMPTY_EMERGENCY: EmergencyContactRecord = { name: "", relationship: "", phone: "", email: "" };
 const EMPTY_MEDICAL: MedicalRecord = { bloodType: "", allergies: "", conditions: "", medications: "", notes: "" };
 const EMPTY_DIVING: DivingRecord = { certLevel: "", licenseNumber: "", diveCount: "", lastDiveDate: "", instructor: "", notes: "" };
+const EMPTY_SOCIAL: SocialRecord = { platform: "", handle: "", url: "", notes: "" };
+
+const SOCIAL_PLATFORMS = ["LINE", "Facebook", "Instagram", "WhatsApp", "WeChat", "Telegram", "Twitter/X", "TikTok", "Other"] as const;
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -215,10 +298,29 @@ export default function CustomersPage() {
   const [dealSubmitting, setDealSubmitting] = useState(false);
 
   // Sub-forms
-  const [extras, setExtras] = useState<ExtrasData>({ addresses: [], jobs: [], education: [], emergencyContacts: [], medical: [], diving: [] });
+  const [extras, setExtras] = useState<ExtrasData>({ addresses: [], jobs: [], education: [], emergencyContacts: [], medical: [], diving: [], socials: [], files: [] });
   const [openSections, setOpenSections] = useState<Set<string>>(new Set());
   const [extrasLoading, setExtrasLoading] = useState(false);
   const [extrasSaving, setExtrasSaving] = useState(false);
+  const [fileUploading, setFileUploading] = useState(false);
+  const customerFileRef = useRef<HTMLInputElement>(null);
+
+  const [rewardsData, setRewardsData] = useState<RewardsData>({ rewards: [], totalVouchers: 0, totalPoints: 0 });
+  const [rewardsLoading, setRewardsLoading] = useState(false);
+  const [pointForm, setPointForm] = useState({ amount: "", notes: "" });
+  const [pointSubmitting, setPointSubmitting] = useState(false);
+  const [availableVouchers, setAvailableVouchers] = useState<VoucherOption[]>([]);
+  const [customerVouchers, setCustomerVouchers] = useState<CustomerVoucherRecord[]>([]);
+  const [voucherFormId, setVoucherFormId] = useState("");
+  const [voucherFormQty, setVoucherFormQty] = useState("1");
+  const [voucherFormNotes, setVoucherFormNotes] = useState("");
+  const [voucherSubmitting, setVoucherSubmitting] = useState(false);
+
+  const [customerDeals, setCustomerDeals] = useState<CustomerDealRecord[]>([]);
+  const [customerCampaigns, setCustomerCampaigns] = useState<CustomerCampaignRecord[]>([]);
+  const [editDealId, setEditDealId] = useState<string | null>(null);
+  const [editDealForm, setEditDealForm] = useState({ title: "", value: "", stage: "proposal", notes: "" });
+  const [editDealSaving, setEditDealSaving] = useState(false);
 
   const toggleSection = (section: string) => {
     setOpenSections((prev) => {
@@ -270,7 +372,7 @@ export default function CustomersPage() {
       const data = await res.json();
       setExtras(data);
     } catch {
-      setExtras({ addresses: [], jobs: [], education: [], emergencyContacts: [], medical: [], diving: [] });
+      setExtras({ addresses: [], jobs: [], education: [], emergencyContacts: [], medical: [], diving: [], socials: [], files: [] });
     } finally {
       setExtrasLoading(false);
     }
@@ -279,7 +381,9 @@ export default function CustomersPage() {
   const openCreateDialog = () => {
     setEditingCustomer(null);
     setFormData(EMPTY_FORM);
-    setExtras({ addresses: [], jobs: [], education: [], emergencyContacts: [], medical: [], diving: [] });
+    setExtras({ addresses: [], jobs: [], education: [], emergencyContacts: [], medical: [], diving: [], socials: [], files: [] });
+    setRewardsData({ rewards: [], totalVouchers: 0, totalPoints: 0 });
+    setCustomerVouchers([]);
     setOpenSections(new Set());
     fetchSources();
     setDialogOpen(true);
@@ -288,23 +392,34 @@ export default function CustomersPage() {
   const openEditDialog = (customer: Customer) => {
     setEditingCustomer(customer);
     setFormData({
-      source: (customer as any).source || null,
-      stage: (customer as any).stage || "new",
+      source: customer.source || null,
+      stage: customer.stage || "new",
+      titlePrefix: customer.titlePrefix || null,
       firstName: customer.firstName || customer.name?.split(" ")[0] || "",
       lastName: customer.lastName || customer.name?.split(" ").slice(1).join(" ") || "",
+      nickname: customer.nickname || "",
+      sex: customer.sex || null,
       phone: customer.phone || "",
       email: customer.email || "",
       interest: customer.interest || "",
       status: customer.status,
-      birthDate: (customer as any).birthDate || "",
-      idCard: (customer as any).idCard || "",
-      customerAddress: (customer as any).customerAddress || "",
+      birthDate: customer.birthDate || "",
+      idCard: customer.idCard || "",
+      address: customer.address || "",
+      city: customer.city || "",
+      state: customer.state || "",
+      postalCode: customer.postalCode || "",
+      country: customer.country || "",
       notes: customer.notes || "",
     });
     setOpenSections(new Set());
     fetchSources();
+    fetchAvailableVouchers();
     setDialogOpen(true);
     fetchExtras(customer.id);
+    fetchRewards(customer.id);
+    fetchCustomerDeals(customer.id);
+    fetchCustomerCampaigns(customer.id);
   };
 
   const handleSubmit = async () => {
@@ -313,8 +428,11 @@ export default function CustomersPage() {
     const autoName = [formData.firstName.trim(), formData.lastName.trim()].filter(Boolean).join(" ") || "Unnamed";
     const payload = {
       name: autoName,
+      titlePrefix: formData.titlePrefix || null,
       firstName: formData.firstName.trim() || null,
       lastName: formData.lastName.trim() || null,
+      nickname: formData.nickname.trim() || null,
+      sex: formData.sex || null,
       email: formData.email.trim() || null,
       phone: formData.phone.trim() || null,
       source: formData.source || null,
@@ -322,7 +440,11 @@ export default function CustomersPage() {
       interest: formData.interest.trim() || null,
       birthDate: formData.birthDate.trim() || null,
       idCard: formData.idCard.trim() || null,
-      customerAddress: formData.customerAddress.trim() || null,
+      address: formData.address.trim() || null,
+      city: formData.city.trim() || null,
+      state: formData.state.trim() || null,
+      postalCode: formData.postalCode.trim() || null,
+      country: formData.country.trim() || null,
       status: formData.status,
       notes: formData.notes || null,
     };
@@ -405,6 +527,192 @@ export default function CustomersPage() {
       toast.success("Deleted");
     } catch {
       toast.error("Failed to delete");
+    }
+  };
+
+  const handleFileUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0 || !editingCustomer) return;
+    setFileUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        const fd = new FormData();
+        fd.append("file", file);
+        const res = await fetch(`/api/customers/${editingCustomer.id}/files`, { method: "POST", body: fd });
+        if (!res.ok) throw new Error("Upload failed");
+      }
+      await fetchExtras(editingCustomer.id);
+      toast.success("File(s) uploaded");
+    } catch {
+      toast.error("Failed to upload file");
+    } finally {
+      setFileUploading(false);
+      if (customerFileRef.current) customerFileRef.current.value = "";
+    }
+  };
+
+  const fetchRewards = useCallback(async (customerId: string) => {
+    setRewardsLoading(true);
+    try {
+      const [rewardsRes, vouchersRes] = await Promise.all([
+        fetch(`/api/customers/${customerId}/rewards`),
+        fetch(`/api/customers/${customerId}/vouchers`),
+      ]);
+      if (rewardsRes.ok) {
+        setRewardsData(await rewardsRes.json());
+      } else {
+        setRewardsData({ rewards: [], totalVouchers: 0, totalPoints: 0 });
+      }
+      if (vouchersRes.ok) {
+        const data = await vouchersRes.json();
+        setCustomerVouchers(data.customerVouchers || []);
+      } else {
+        setCustomerVouchers([]);
+      }
+    } catch {
+      setRewardsData({ rewards: [], totalVouchers: 0, totalPoints: 0 });
+      setCustomerVouchers([]);
+    } finally {
+      setRewardsLoading(false);
+    }
+  }, []);
+
+  const fetchCustomerDeals = useCallback(async (customerId: string) => {
+    try {
+      const res = await fetch(`/api/customers/${customerId}/deals`);
+      if (res.ok) setCustomerDeals(await res.json());
+      else setCustomerDeals([]);
+    } catch { setCustomerDeals([]); }
+  }, []);
+
+  const fetchCustomerCampaigns = useCallback(async (customerId: string) => {
+    try {
+      const res = await fetch(`/api/customers/${customerId}/campaigns`);
+      if (res.ok) setCustomerCampaigns(await res.json());
+      else setCustomerCampaigns([]);
+    } catch { setCustomerCampaigns([]); }
+  }, []);
+
+  const saveEditDeal = async () => {
+    if (!editDealId) return;
+    setEditDealSaving(true);
+    try {
+      const res = await fetch(`/api/deals/${editDealId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: editDealForm.title,
+          value: Number(editDealForm.value) || 0,
+          stage: editDealForm.stage,
+          notes: editDealForm.notes || null,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success("Deal updated");
+      setEditDealId(null);
+      if (editingCustomer) fetchCustomerDeals(editingCustomer.id);
+    } catch {
+      toast.error("Failed to update deal");
+    } finally {
+      setEditDealSaving(false);
+    }
+  };
+
+  const fetchAvailableVouchers = useCallback(async () => {
+    if (!activeBrand?.id) return;
+    try {
+      const res = await fetch(`/api/vouchers?brandId=${activeBrand.id}&status=active&limit=100`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setAvailableVouchers(data.vouchers || []);
+    } catch {}
+  }, [activeBrand?.id]);
+
+  const addPoint = async () => {
+    if (!editingCustomer || !pointForm.amount) return;
+    setPointSubmitting(true);
+    try {
+      const res = await fetch(`/api/customers/${editingCustomer.id}/rewards`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "point", amount: Number(pointForm.amount), notes: pointForm.notes || null }),
+      });
+      if (!res.ok) throw new Error("Failed to add points");
+      toast.success("Points added");
+      setPointForm({ amount: "", notes: "" });
+      await fetchRewards(editingCustomer.id);
+    } catch {
+      toast.error("Failed to add points");
+    } finally {
+      setPointSubmitting(false);
+    }
+  };
+
+  const assignVoucher = async () => {
+    if (!editingCustomer || !voucherFormId) return;
+    setVoucherSubmitting(true);
+    try {
+      const qty = parseInt(voucherFormQty) || 1;
+      const res = await fetch(`/api/customers/${editingCustomer.id}/vouchers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ voucherId: voucherFormId, quantity: qty, notes: voucherFormNotes || null }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to assign voucher");
+      }
+      toast.success("Voucher assigned");
+      setVoucherFormId("");
+      setVoucherFormQty("1");
+      setVoucherFormNotes("");
+      await fetchRewards(editingCustomer.id);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to assign voucher");
+    } finally {
+      setVoucherSubmitting(false);
+    }
+  };
+
+  const updateVoucherQuantity = async (recordId: string, delta: number) => {
+    if (!editingCustomer) return;
+    const cv = customerVouchers.find((c) => c.id === recordId);
+    if (!cv) return;
+    const newQty = cv.quantity + delta;
+    if (newQty < 1) return;
+    try {
+      const res = await fetch(`/api/customers/${editingCustomer.id}/vouchers?recordId=${recordId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quantity: newQty }),
+      });
+      if (!res.ok) throw new Error("Failed to update");
+      toast.success("Quantity updated");
+      await fetchRewards(editingCustomer.id);
+    } catch {
+      toast.error("Failed to update quantity");
+    }
+  };
+
+  const deleteCustomerVoucher = async (recordId: string) => {
+    if (!editingCustomer || !confirm("Remove this voucher from customer?")) return;
+    try {
+      const res = await fetch(`/api/customers/${editingCustomer.id}/vouchers?recordId=${recordId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete");
+      toast.success("Voucher removed");
+      await fetchRewards(editingCustomer.id);
+    } catch {
+      toast.error("Failed to remove voucher");
+    }
+  };
+
+  const handleFileDelete = async (fileId: string) => {
+    if (!editingCustomer) return;
+    try {
+      await fetch(`/api/customers/${editingCustomer.id}/files?fileId=${fileId}`, { method: "DELETE" });
+      await fetchExtras(editingCustomer.id);
+      toast.success("File deleted");
+    } catch {
+      toast.error("Failed to delete file");
     }
   };
 
@@ -555,7 +863,7 @@ export default function CustomersPage() {
             <DialogTitle>{editingCustomer ? "Edit Customer" : "Add Customer"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            {/* Section 1 */}
+            {/* Section 1: Basic Info */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Source</Label>
@@ -577,7 +885,17 @@ export default function CustomersPage() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Title Prefix</Label>
+                <Select value={formData.titlePrefix ?? "__none__"} onValueChange={(v) => setFormData((f) => ({ ...f, titlePrefix: v === "__none__" ? null : v }))}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">None</SelectItem>
+                    {TITLE_PREFIX_OPTIONS.map((opt) => (<SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2">
                 <Label>First Name</Label>
                 <Input value={formData.firstName} onChange={(e) => setFormData((f) => ({ ...f, firstName: e.target.value }))} placeholder="First name" />
@@ -587,19 +905,35 @@ export default function CustomersPage() {
                 <Input value={formData.lastName} onChange={(e) => setFormData((f) => ({ ...f, lastName: e.target.value }))} placeholder="Last name" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Nickname</Label>
+                <Input value={formData.nickname} onChange={(e) => setFormData((f) => ({ ...f, nickname: e.target.value }))} placeholder="Nickname" />
+              </div>
+              <div className="space-y-2">
+                <Label>Sex</Label>
+                <Select value={formData.sex ?? "__none__"} onValueChange={(v) => setFormData((f) => ({ ...f, sex: v === "__none__" ? null : v }))}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">-</SelectItem>
+                    {SEX_OPTIONS.map((opt) => (<SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2">
                 <Label>Phone</Label>
                 <Input value={formData.phone} onChange={(e) => setFormData((f) => ({ ...f, phone: e.target.value }))} placeholder="Phone number" />
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Email</Label>
                 <Input type="email" value={formData.email} onChange={(e) => setFormData((f) => ({ ...f, email: e.target.value }))} placeholder="Email address" />
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Interest</Label>
-              <Input value={formData.interest} onChange={(e) => setFormData((f) => ({ ...f, interest: e.target.value }))} placeholder="What are they interested in?" />
+              <div className="space-y-2">
+                <Label>Interest</Label>
+                <Input value={formData.interest} onChange={(e) => setFormData((f) => ({ ...f, interest: e.target.value }))} placeholder="What are they interested in?" />
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Notes</Label>
@@ -619,9 +953,30 @@ export default function CustomersPage() {
                 <Input value={formData.idCard} onChange={(e) => setFormData((f) => ({ ...f, idCard: e.target.value }))} placeholder="ID Card or Passport number" />
               </div>
             </div>
+            <p className="text-xs font-medium text-muted-foreground pt-2">Address</p>
             <div className="space-y-2">
-              <Label>Address</Label>
-              <Textarea value={formData.customerAddress} onChange={(e) => setFormData((f) => ({ ...f, customerAddress: e.target.value }))} placeholder="Full address" rows={2} />
+              <Label>Street</Label>
+              <Input value={formData.address} onChange={(e) => setFormData((f) => ({ ...f, address: e.target.value }))} placeholder="Street address" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>City</Label>
+                <Input value={formData.city} onChange={(e) => setFormData((f) => ({ ...f, city: e.target.value }))} placeholder="City" />
+              </div>
+              <div className="space-y-2">
+                <Label>State / Province</Label>
+                <Input value={formData.state} onChange={(e) => setFormData((f) => ({ ...f, state: e.target.value }))} placeholder="State or province" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Postal Code</Label>
+                <Input value={formData.postalCode} onChange={(e) => setFormData((f) => ({ ...f, postalCode: e.target.value }))} placeholder="Postal code" />
+              </div>
+              <div className="space-y-2">
+                <Label>Country</Label>
+                <Input value={formData.country} onChange={(e) => setFormData((f) => ({ ...f, country: e.target.value }))} placeholder="Country" />
+              </div>
             </div>
 
             {/* Sub-forms (only in edit mode) */}
@@ -694,8 +1049,355 @@ export default function CustomersPage() {
                         { key: "notes", label: "Notes", type: "textarea" },
                       ]}
                     />
+                    <ExtraSection title="Social Media / Chat" icon={<MessageCircle className="size-4" />} isOpen={openSections.has("socials")} onToggle={() => toggleSection("socials")}
+                      records={extras.socials} type="socials" emptyRecord={EMPTY_SOCIAL} onSave={saveExtraRecord} onDelete={deleteExtraRecord} saving={extrasSaving}
+                      fields={[
+                        { key: "platform", label: "Platform", type: "select", options: SOCIAL_PLATFORMS as unknown as string[] },
+                        { key: "handle", label: "Username / ID" },
+                        { key: "url", label: "Profile URL" },
+                        { key: "notes", label: "Notes" },
+                      ]}
+                    />
+
+                    {/* Section 3: Files & Images */}
+                    <Collapsible open={openSections.has("files")} onOpenChange={() => toggleSection("files")}>
+                      <CollapsibleTrigger asChild>
+                        <Button variant="ghost" className="w-full justify-between px-3 py-2 h-auto">
+                          <span className="flex items-center gap-2 text-sm font-medium">
+                            <FileText className="size-4" /> Files & Images
+                            <Badge variant="secondary" className="ml-1 text-xs">{extras.files.length}</Badge>
+                          </span>
+                          {openSections.has("files") ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="px-3 pb-3 space-y-3">
+                        {extras.files.length > 0 && (
+                          <div className="grid grid-cols-2 gap-2">
+                            {extras.files.map((file) => (
+                              <div key={file.id} className="border rounded-md p-2 flex items-center gap-2 group">
+                                {file.fileType === "image" ? (
+                                  <a href={file.fileUrl} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                                    <img src={file.fileUrl} alt={file.fileName} className="size-12 rounded object-cover" />
+                                  </a>
+                                ) : (
+                                  <FileText className="size-8 text-muted-foreground shrink-0" />
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <a href={file.fileUrl} target="_blank" rel="noopener noreferrer" className="text-xs font-medium truncate block hover:underline">{file.fileName}</a>
+                                  <p className="text-xs text-muted-foreground">{file.fileSize ? `${(file.fileSize / 1024).toFixed(1)} KB` : ""}</p>
+                                </div>
+                                <Button variant="ghost" size="icon" className="size-6 opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive shrink-0" onClick={() => handleFileDelete(file.id!)}><X className="size-3" /></Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <input ref={customerFileRef} type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" className="hidden" onChange={(e) => handleFileUpload(e.target.files)} />
+                        <Button variant="outline" size="sm" className="w-full" onClick={() => customerFileRef.current?.click()} disabled={fileUploading}>
+                          {fileUploading ? <Loader2 className="size-3 animate-spin" /> : <Upload className="size-3" />}
+                          Upload Files / Images
+                        </Button>
+                      </CollapsibleContent>
+                    </Collapsible>
                   </div>
                 )}
+
+                {/* Rewards Section */}
+                <Separator />
+                <p className="text-sm font-medium text-muted-foreground">Rewards</p>
+                {rewardsLoading ? (
+                  <div className="flex justify-center py-4"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>
+                ) : (
+                  <div className="space-y-3">
+                    {/* Summary Cards */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <Card>
+                        <CardContent className="flex items-center gap-3 py-3 px-4">
+                          <Gift className="size-5 text-muted-foreground" />
+                          <div>
+                            <p className="text-xs text-muted-foreground">Vouchers Assigned</p>
+                            <p className="text-lg font-bold">{customerVouchers.reduce((s, cv) => s + cv.quantity, 0)}</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="flex items-center gap-3 py-3 px-4">
+                          <Star className="size-5 text-muted-foreground" />
+                          <div>
+                            <p className="text-xs text-muted-foreground">Total Points</p>
+                            <p className="text-lg font-bold">{rewardsData.totalPoints.toLocaleString()}</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* Add Point */}
+                    <div className="border rounded-md p-3 space-y-3">
+                      <p className="text-xs font-medium flex items-center gap-1.5"><Star className="size-3" /> Add Points</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input type="number" min={1} placeholder="Amount" className="h-8 text-xs" value={pointForm.amount} onChange={(e) => setPointForm((f) => ({ ...f, amount: e.target.value }))} />
+                        <Input placeholder="Notes (optional)" className="h-8 text-xs" value={pointForm.notes} onChange={(e) => setPointForm((f) => ({ ...f, notes: e.target.value }))} />
+                      </div>
+                      <Button size="sm" className="w-full" onClick={addPoint} disabled={pointSubmitting || !pointForm.amount}>
+                        {pointSubmitting ? <Loader2 className="size-3 animate-spin" /> : <Plus className="size-3" />}
+                        Add Points
+                      </Button>
+                    </div>
+
+                    {/* Point History */}
+                    {rewardsData.rewards.length > 0 && (
+                      <div className="border rounded-md overflow-hidden">
+                        <div className="px-3 py-2 bg-muted/30 border-b"><p className="text-xs font-medium">Point History</p></div>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs h-8 text-right">Amount</TableHead>
+                              <TableHead className="text-xs h-8">Notes</TableHead>
+                              <TableHead className="text-xs h-8">Added By</TableHead>
+                              <TableHead className="text-xs h-8">Date</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {rewardsData.rewards.map((r) => (
+                              <TableRow key={r.id}>
+                                <TableCell className="py-1.5 text-right font-medium text-sm">{r.amount.toLocaleString()}</TableCell>
+                                <TableCell className="py-1.5 text-xs text-muted-foreground max-w-[120px] truncate">{r.notes || "—"}</TableCell>
+                                <TableCell className="py-1.5 text-xs text-muted-foreground">{r.createdBy?.fullName || "—"}</TableCell>
+                                <TableCell className="py-1.5 text-xs text-muted-foreground">{format(new Date(r.createdAt), "MMM d, yyyy HH:mm")}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+
+                    <Separator />
+
+                    {/* Assign Voucher */}
+                    <div className="border rounded-md p-3 space-y-3">
+                      <p className="text-xs font-medium flex items-center gap-1.5"><Gift className="size-3" /> Assign Voucher</p>
+                      <div className="space-y-2">
+                        <Select value={voucherFormId || "__none__"} onValueChange={(v) => setVoucherFormId(v === "__none__" ? "" : v)}>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select a voucher" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">Select a voucher...</SelectItem>
+                            {availableVouchers.map((v) => (
+                              <SelectItem key={v.id} value={v.id}>
+                                {v.name}{v.code ? ` (${v.code})` : ""} — {v.type === "percentage" ? `${v.value}%` : v.type === "fixed_amount" ? `฿${v.value}` : v.type}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <div className="flex gap-2">
+                          <Input type="number" min="1" placeholder="Qty" className="h-8 text-xs w-20" value={voucherFormQty} onChange={(e) => setVoucherFormQty(e.target.value)} />
+                          <Input placeholder="Notes (optional)" className="h-8 text-xs flex-1" value={voucherFormNotes} onChange={(e) => setVoucherFormNotes(e.target.value)} />
+                        </div>
+                      </div>
+                      <Button size="sm" className="w-full" onClick={assignVoucher} disabled={voucherSubmitting || !voucherFormId}>
+                        {voucherSubmitting ? <Loader2 className="size-3 animate-spin" /> : <Gift className="size-3" />}
+                        Assign Voucher
+                      </Button>
+                      {availableVouchers.length === 0 && (
+                        <p className="text-xs text-muted-foreground text-center">No active vouchers. Create vouchers in the Vouchers menu first.</p>
+                      )}
+                    </div>
+
+                    {/* Assigned Vouchers History */}
+                    {customerVouchers.length > 0 && (
+                      <div className="border rounded-md overflow-hidden">
+                        <div className="px-3 py-2 bg-muted/30 border-b"><p className="text-xs font-medium">Assigned Vouchers ({customerVouchers.reduce((s, cv) => s + cv.quantity, 0)} total)</p></div>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs h-8">Voucher</TableHead>
+                              <TableHead className="text-xs h-8">Value</TableHead>
+                              <TableHead className="text-xs h-8 text-center">Qty</TableHead>
+                              <TableHead className="text-xs h-8">Status</TableHead>
+                              <TableHead className="text-xs h-8">By</TableHead>
+                              <TableHead className="text-xs h-8">Date</TableHead>
+                              <TableHead className="text-xs h-8 w-16"></TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {customerVouchers.map((cv) => (
+                              <TableRow key={cv.id}>
+                                <TableCell className="py-1.5">
+                                  <div className="flex items-center gap-1.5">
+                                    {cv.voucher.coverUrl && <img src={cv.voucher.coverUrl} alt="" className="size-6 rounded object-cover shrink-0" />}
+                                    <div>
+                                      <p className="text-xs font-medium">{cv.voucher.name}</p>
+                                      {cv.voucher.code && <p className="text-[10px] text-muted-foreground font-mono">{cv.voucher.code}</p>}
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="py-1.5 text-xs font-medium">
+                                  {cv.voucher.type === "percentage" ? `${cv.voucher.value}%` : cv.voucher.type === "fixed_amount" ? `฿${cv.voucher.value}` : "Free Item"}
+                                </TableCell>
+                                <TableCell className="py-1.5 text-center">
+                                  <div className="flex items-center justify-center gap-1">
+                                    <Button variant="outline" size="icon" className="size-5" onClick={() => updateVoucherQuantity(cv.id, -1)} disabled={cv.quantity <= 1}><span className="text-xs">-</span></Button>
+                                    <span className="text-xs font-bold w-6 text-center">{cv.quantity}</span>
+                                    <Button variant="outline" size="icon" className="size-5" onClick={() => updateVoucherQuantity(cv.id, 1)}><span className="text-xs">+</span></Button>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="py-1.5">
+                                  <Badge variant={cv.status === "assigned" ? "default" : cv.status === "used" ? "secondary" : "destructive"} className="text-xs capitalize">{cv.status}</Badge>
+                                </TableCell>
+                                <TableCell className="py-1.5 text-xs text-muted-foreground">{cv.assignedBy?.fullName || "—"}</TableCell>
+                                <TableCell className="py-1.5 text-xs text-muted-foreground">{format(new Date(cv.createdAt), "MMM d, yyyy HH:mm")}</TableCell>
+                                <TableCell className="py-1.5">
+                                  <Button variant="ghost" size="icon" className="size-6 text-destructive hover:text-destructive" onClick={() => deleteCustomerVoucher(cv.id)}>
+                                    <Trash2 className="size-3" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Deals Section ──────────────────── */}
+                <Separator />
+                <Collapsible open={openSections.has("deals")} onOpenChange={() => toggleSection("deals")}>
+                  <CollapsibleTrigger className="flex items-center justify-between w-full py-1 group">
+                    <div className="flex items-center gap-2">
+                      <HandCoins className="size-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Deals</span>
+                      <Badge variant="secondary" className="text-[10px]">{customerDeals.length}</Badge>
+                    </div>
+                    {openSections.has("deals") ? <ChevronUp className="size-4 text-muted-foreground" /> : <ChevronDown className="size-4 text-muted-foreground" />}
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-3 pt-2">
+                    {customerDeals.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-4">No deals found for this customer.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {customerDeals.map((deal) => (
+                          <div key={deal.id} className="border rounded-lg p-3 space-y-2">
+                            {editDealId === deal.id ? (
+                              <div className="space-y-2">
+                                <Input className="h-8 text-xs" value={editDealForm.title} onChange={(e) => setEditDealForm((f) => ({ ...f, title: e.target.value }))} placeholder="Deal title" />
+                                <div className="grid grid-cols-2 gap-2">
+                                  <Input type="number" className="h-8 text-xs" value={editDealForm.value} onChange={(e) => setEditDealForm((f) => ({ ...f, value: e.target.value }))} placeholder="Value" />
+                                  <Select value={editDealForm.stage} onValueChange={(v) => setEditDealForm((f) => ({ ...f, stage: v }))}>
+                                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      {["proposal","negotiation","contract","closed_won","closed_lost"].map((s) => (
+                                        <SelectItem key={s} value={s} className="text-xs">{s.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <Textarea className="text-xs" rows={2} value={editDealForm.notes} onChange={(e) => setEditDealForm((f) => ({ ...f, notes: e.target.value }))} placeholder="Notes" />
+                                <div className="flex gap-2 justify-end">
+                                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setEditDealId(null)}>Cancel</Button>
+                                  <Button size="sm" className="h-7 text-xs" onClick={saveEditDeal} disabled={editDealSaving}>
+                                    {editDealSaving && <Loader2 className="size-3 animate-spin mr-1" />}Save
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="text-sm font-medium truncate">{deal.title}</p>
+                                    <Badge variant={deal.stage === "closed_won" ? "default" : deal.stage === "closed_lost" ? "destructive" : "secondary"} className="text-[10px] capitalize">
+                                      {deal.stage.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
+                                    </Badge>
+                                  </div>
+                                  <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
+                                    <span className="font-medium text-foreground">${deal.value.toLocaleString()}</span>
+                                    {deal.openedBy && <span>Opened by {deal.openedBy.fullName}</span>}
+                                    {deal.closedBy && <span>Closed by {deal.closedBy.fullName}</span>}
+                                    <span>{format(new Date(deal.openedAt || deal.createdAt), "MMM d, yyyy")}</span>
+                                  </div>
+                                  {deal.notes && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{deal.notes}</p>}
+                                  {deal.lead && <p className="text-[10px] text-muted-foreground mt-0.5">Lead: {deal.lead.firstName} {deal.lead.lastName}</p>}
+                                </div>
+                                <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={() => {
+                                  setEditDealId(deal.id);
+                                  setEditDealForm({ title: deal.title, value: String(deal.value), stage: deal.stage, notes: deal.notes || "" });
+                                }}>
+                                  <Pencil className="size-3" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <Button variant="outline" size="sm" className="w-full" onClick={() => {
+                      if (!editingCustomer) return;
+                      const name = [formData.firstName, formData.lastName].filter(Boolean).join(" ") || editingCustomer.name;
+                      setDealForm({ title: `Deal - ${name}`, value: "", stage: "proposal", notes: "" });
+                      setDealDialogOpen(true);
+                    }}>
+                      <Plus className="size-3 mr-1" />Create New Deal
+                    </Button>
+                  </CollapsibleContent>
+                </Collapsible>
+
+                {/* ── Campaigns Section ──────────────── */}
+                <Separator />
+                <Collapsible open={openSections.has("campaigns")} onOpenChange={() => toggleSection("campaigns")}>
+                  <CollapsibleTrigger className="flex items-center justify-between w-full py-1 group">
+                    <div className="flex items-center gap-2">
+                      <Megaphone className="size-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Campaigns</span>
+                      <Badge variant="secondary" className="text-[10px]">{customerCampaigns.length}</Badge>
+                    </div>
+                    {openSections.has("campaigns") ? <ChevronUp className="size-4 text-muted-foreground" /> : <ChevronDown className="size-4 text-muted-foreground" />}
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-3 pt-2">
+                    {customerCampaigns.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-4">Not a member of any campaign.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {customerCampaigns.map((cm) => (
+                          <div key={cm.id} className="border rounded-lg p-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="text-sm font-medium truncate">{cm.campaign.name}</p>
+                                  <Badge variant={cm.campaign.status === "running" ? "default" : cm.campaign.status === "completed" ? "secondary" : "outline"} className="text-[10px] capitalize">
+                                    {cm.campaign.status}
+                                  </Badge>
+                                  <Badge variant="outline" className="text-[10px] capitalize">{cm.campaign.type}</Badge>
+                                </div>
+                                <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
+                                  {cm.stage && (
+                                    <span className="flex items-center gap-1">
+                                      {cm.stage.color && <span className="size-2 rounded-full inline-block" style={{ backgroundColor: cm.stage.color }} />}
+                                      Stage: {cm.stage.name}
+                                    </span>
+                                  )}
+                                  <span>Status: <span className="capitalize">{cm.status}</span></span>
+                                  {cm.addedBy && <span>Added by {cm.addedBy.fullName}</span>}
+                                  <span className="capitalize">via {cm.addedVia}</span>
+                                  <span>{format(new Date(cm.addedAt), "MMM d, yyyy")}</span>
+                                </div>
+                                {cm.campaign.startDate && (
+                                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                                    Period: {format(new Date(cm.campaign.startDate), "MMM d, yyyy")}
+                                    {cm.campaign.endDate ? ` — ${format(new Date(cm.campaign.endDate), "MMM d, yyyy")}` : " — ongoing"}
+                                  </p>
+                                )}
+                                {cm.notes && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{cm.notes}</p>}
+                              </div>
+                              <Button variant="ghost" size="icon" className="size-7 shrink-0" asChild>
+                                <a href={`/campaigns/${cm.campaign.id}`} target="_blank" rel="noopener noreferrer">
+                                  <ExternalLink className="size-3" />
+                                </a>
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CollapsibleContent>
+                </Collapsible>
               </>
             )}
           </div>
@@ -808,6 +1510,7 @@ export default function CustomersPage() {
                 if (!res.ok) throw new Error("Failed to create deal");
                 toast.success("Deal created");
                 setDealDialogOpen(false);
+                if (editingCustomer) fetchCustomerDeals(editingCustomer.id);
               } catch { toast.error("Failed to create deal"); }
               finally { setDealSubmitting(false); }
             }}>
@@ -825,7 +1528,8 @@ export default function CustomersPage() {
 interface FieldDef {
   key: string;
   label: string;
-  type?: "text" | "textarea";
+  type?: "text" | "textarea" | "select";
+  options?: string[];
 }
 
 function ExtraSection({
@@ -904,6 +1608,17 @@ function ExtraSection({
                         <Label className="text-xs">{f.label}</Label>
                         <Textarea value={editForm[f.key] || ""} onChange={(e) => setEditForm((p: any) => ({ ...p, [f.key]: e.target.value }))} rows={2} />
                       </div>
+                    ) : f.type === "select" && f.options ? (
+                      <div key={f.key} className="space-y-1">
+                        <Label className="text-xs">{f.label}</Label>
+                        <Select value={editForm[f.key] || "__none__"} onValueChange={(v) => setEditForm((p: any) => ({ ...p, [f.key]: v === "__none__" ? "" : v }))}>
+                          <SelectTrigger className="w-full h-8 text-xs"><SelectValue placeholder="Select" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">-</SelectItem>
+                            {f.options.map((opt) => (<SelectItem key={opt} value={opt}>{opt}</SelectItem>))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     ) : (
                       <div key={f.key} className="space-y-1">
                         <Label className="text-xs">{f.label}</Label>
@@ -948,6 +1663,17 @@ function ExtraSection({
                   <div key={f.key} className="col-span-2 space-y-1">
                     <Label className="text-xs">{f.label}</Label>
                     <Textarea value={editForm[f.key] || ""} onChange={(e) => setEditForm((p: any) => ({ ...p, [f.key]: e.target.value }))} rows={2} />
+                  </div>
+                ) : f.type === "select" && f.options ? (
+                  <div key={f.key} className="space-y-1">
+                    <Label className="text-xs">{f.label}</Label>
+                    <Select value={editForm[f.key] || "__none__"} onValueChange={(v) => setEditForm((p: any) => ({ ...p, [f.key]: v === "__none__" ? "" : v }))}>
+                      <SelectTrigger className="w-full h-8 text-xs"><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">-</SelectItem>
+                        {f.options.map((opt) => (<SelectItem key={opt} value={opt}>{opt}</SelectItem>))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 ) : (
                   <div key={f.key} className="space-y-1">

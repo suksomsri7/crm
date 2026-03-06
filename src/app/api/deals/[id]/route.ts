@@ -31,6 +31,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     include: {
       customer: true,
       lead: { include: { assignedTo: { select: { id: true, fullName: true, avatarUrl: true } } } },
+      openedBy: { select: { id: true, fullName: true } },
+      closedBy: { select: { id: true, fullName: true } },
     },
   });
 
@@ -59,7 +61,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     updateData.expectedCloseDate = parsed.data.expectedCloseDate ? new Date(parsed.data.expectedCloseDate) : null;
   }
   if (parsed.data.stage === "closed_won" || parsed.data.stage === "closed_lost") {
-    updateData.closedAt = new Date();
+    if (!existing.closedAt) {
+      updateData.closedAt = new Date();
+      updateData.closedById = user.id;
+    }
+  } else if (existing.closedAt) {
+    updateData.closedAt = null;
+    updateData.closedById = null;
   }
 
   const deal = await db.deal.update({
@@ -68,6 +76,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     include: {
       customer: { select: { id: true, name: true } },
       lead: { select: { id: true, title: true } },
+      openedBy: { select: { id: true, fullName: true } },
+      closedBy: { select: { id: true, fullName: true } },
     },
   });
 

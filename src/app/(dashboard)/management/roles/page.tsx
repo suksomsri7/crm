@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useBrand } from "@/components/providers/brand-provider";
-import { PERMISSION_GROUPS, type ResourceAction } from "@/lib/auth-types";
+import { PERMISSION_GROUPS, ALL_PERMISSIONS, type ResourceAction } from "@/lib/auth-types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle,
@@ -326,48 +325,54 @@ export default function RolesPage() {
 
       {/* Create / Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
-          <DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden !flex !flex-col">
+          <DialogHeader className="shrink-0">
             <DialogTitle>{editingRole ? "Edit Role" : "Create Role"}</DialogTitle>
             <DialogDescription>
               {editingRole ? "Update role details and permissions" : "Set up a new role with permissions"}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="role-name">Name</Label>
-                <Input
-                  id="role-name"
-                  placeholder="e.g. Sales Manager"
-                  value={roleName}
-                  onChange={(e) => setRoleName(e.target.value)}
-                />
+          <div className="flex-1 overflow-y-auto min-h-0 pr-2 -mr-2">
+            <div className="space-y-4 pb-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="role-name">Name</Label>
+                  <Input
+                    id="role-name"
+                    placeholder="e.g. Sales Manager"
+                    value={roleName}
+                    onChange={(e) => setRoleName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="role-desc">Description</Label>
+                  <Textarea
+                    id="role-desc"
+                    placeholder="Optional description"
+                    value={roleDescription}
+                    onChange={(e) => setRoleDescription(e.target.value)}
+                    rows={1}
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="role-desc">Description</Label>
-                <Textarea
-                  id="role-desc"
-                  placeholder="Optional description"
-                  value={roleDescription}
-                  onChange={(e) => setRoleDescription(e.target.value)}
-                  rows={1}
-                />
+
+              <Separator />
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <Label>Permissions</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedPermissions.size} of {ALL_PERMISSIONS.length} selected
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setSelectedPermissions(new Set(ALL_PERMISSIONS))}>Select All</Button>
+                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setSelectedPermissions(new Set())}>Clear All</Button>
+                </div>
               </div>
-            </div>
 
-            <Separator />
-
-            <div className="space-y-1">
-              <Label>Permissions</Label>
-              <p className="text-xs text-muted-foreground">
-                {selectedPermissions.size} selected
-              </p>
-            </div>
-
-            <ScrollArea className="flex-1 -mx-6 px-6 min-h-0 max-h-[40vh]">
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 pb-2">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {Object.entries(PERMISSION_GROUPS).map(([key, group]) => {
                   const allChecked = group.permissions.every((p) => selectedPermissions.has(p));
                   const someChecked = group.permissions.some((p) => selectedPermissions.has(p));
@@ -381,6 +386,9 @@ export default function RolesPage() {
                         <Label className="text-sm font-medium cursor-pointer" onClick={() => toggleGroup(group.permissions)}>
                           {group.label}
                         </Label>
+                        <Badge variant="secondary" className="text-[10px] ml-auto">
+                          {group.permissions.filter((p) => selectedPermissions.has(p)).length}/{group.permissions.length}
+                        </Badge>
                       </div>
                       <div className="space-y-1.5 pl-6">
                         {group.permissions.map((perm) => {
@@ -400,10 +408,10 @@ export default function RolesPage() {
                   );
                 })}
               </div>
-            </ScrollArea>
+            </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="shrink-0 border-t pt-4">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving && <Loader2 className="mr-2 size-4 animate-spin" />}

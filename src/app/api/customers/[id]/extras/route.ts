@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
-const VALID_TYPES = ["addresses", "jobs", "education", "emergencyContacts", "medical", "diving"] as const;
+const VALID_TYPES = ["addresses", "jobs", "education", "emergencyContacts", "medical", "diving", "socials"] as const;
 type ExtraType = (typeof VALID_TYPES)[number];
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -19,6 +19,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       emergencyContacts: { orderBy: { createdAt: "desc" } },
       medical: { orderBy: { createdAt: "desc" } },
       diving: { orderBy: { createdAt: "desc" } },
+      socials: { orderBy: { createdAt: "desc" } },
+      files: { orderBy: { createdAt: "desc" } },
     },
   });
 
@@ -30,6 +32,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     emergencyContacts: customer.emergencyContacts,
     medical: customer.medical,
     diving: customer.diving,
+    socials: customer.socials,
+    files: customer.files,
   });
 }
 
@@ -55,6 +59,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     emergencyContacts: db.customerEmergencyContact,
     medical: db.customerMedical,
     diving: db.customerDiving,
+    socials: db.customerSocial,
   } as Record<ExtraType, any>;
 
   const record = await modelMap[type].create({
@@ -82,6 +87,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     emergencyContacts: db.customerEmergencyContact,
     medical: db.customerMedical,
     diving: db.customerDiving,
+    socials: db.customerSocial,
   } as Record<ExtraType, any>;
 
   const record = await modelMap[type].update({
@@ -111,6 +117,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     emergencyContacts: db.customerEmergencyContact,
     medical: db.customerMedical,
     diving: db.customerDiving,
+    socials: db.customerSocial,
   } as Record<ExtraType, any>;
 
   await modelMap[type].delete({ where: { id: recordId } });

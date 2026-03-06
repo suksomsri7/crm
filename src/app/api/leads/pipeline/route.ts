@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   }
 
   const leads = await db.lead.findMany({
-    where: { brandId },
+    where: { brandId, status: { not: "converted" } },
     orderBy: { updatedAt: "desc" },
     include: {
       customer: { select: { id: true, name: true, company: true } },

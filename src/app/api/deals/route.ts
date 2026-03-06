@@ -54,6 +54,8 @@ export async function GET(req: NextRequest) {
       include: {
         customer: { select: { id: true, name: true, email: true, company: true } },
         lead: { select: { id: true, title: true, stage: true } },
+        openedBy: { select: { id: true, fullName: true } },
+        closedBy: { select: { id: true, fullName: true } },
       },
     }),
     db.deal.count({ where }),
@@ -84,6 +86,8 @@ export async function POST(req: NextRequest) {
     leadId: parsed.data.leadId,
     customerId: parsed.data.customerId,
     notes: parsed.data.notes,
+    openedById: user.id,
+    openedAt: new Date(),
   };
   if (parsed.data.expectedCloseDate !== undefined && parsed.data.expectedCloseDate !== null) {
     dealData.expectedCloseDate = new Date(parsed.data.expectedCloseDate);
@@ -94,6 +98,8 @@ export async function POST(req: NextRequest) {
     include: {
       customer: { select: { id: true, name: true } },
       lead: { select: { id: true, title: true } },
+      openedBy: { select: { id: true, fullName: true } },
+      closedBy: { select: { id: true, fullName: true } },
     },
   });
 

@@ -25,11 +25,12 @@ function groupByMonth<T extends { createdAt: Date }>(
   return Array.from(map.values()).sort((a, b) => a.month.localeCompare(b.month));
 }
 
+// ── Sales Report ─────────────────────────────────────────────
 async function getSalesReport(where: Record<string, unknown>) {
   const [deals, dealsByStage] = await Promise.all([
     db.deal.findMany({
       where,
-      select: { value: true, stage: true, createdAt: true },
+      select: { value: true, stage: true, createdAt: true, openedAt: true, closedAt: true },
     }),
     db.deal.groupBy({
       by: ["stage"],
@@ -41,10 +42,16 @@ async function getSalesReport(where: Record<string, unknown>) {
 
   const monthly = groupByMonth(deals, (d) => d.value);
   const totalRevenue = deals.reduce((sum, d) => sum + d.value, 0);
+  const closedWonRevenue = deals
+    .filter((d) => d.stage === "closed_won")
+    .reduce((sum, d) => sum + d.value, 0);
   const dealCount = deals.length;
   const avgDealSize = dealCount > 0 ? totalRevenue / dealCount : 0;
   const closedWon = deals.filter((d) => d.stage === "closed_won").length;
   const closedLost = deals.filter((d) => d.stage === "closed_lost").length;
+  const openDeals = deals.filter(
+    (d) => d.stage !== "closed_won" && d.stage !== "closed_lost"
+  ).length;
   const winRate =
     closedWon + closedLost > 0
       ? (closedWon / (closedWon + closedLost)) * 100
@@ -54,7 +61,11 @@ async function getSalesReport(where: Record<string, unknown>) {
     type: "sales",
     summary: {
       totalRevenue,
+      closedWonRevenue,
       dealCount,
+      openDeals,
+      closedWon,
+      closedLost,
       avgDealSize: Math.round(avgDealSize * 100) / 100,
       winRate: Math.round(winRate * 10) / 10,
     },
@@ -67,19 +78,31 @@ async function getSalesReport(where: Record<string, unknown>) {
   };
 }
 
+// ── Customers Report ─────────────────────────────────────────
 async function getCustomersReport(where: Record<string, unknown>) {
-  const [customers, totalCount, statusBreakdown] = await Promise.all([
-    db.customer.findMany({
-      where,
-      select: { createdAt: true },
-    }),
-    db.customer.count({ where }),
-    db.customer.groupBy({
-      by: ["status"],
-      where,
-      _count: true,
-    }),
-  ]);
+  const [customers, totalCount, statusBreakdown, sourceBreakdown, stageBreakdown] =
+    await Promise.all([
+      db.customer.findMany({
+        where,
+        select: { createdAt: true },
+      }),
+      db.customer.count({ where }),
+      db.customer.groupBy({
+        by: ["status"],
+        where,
+        _count: true,
+      }),
+      db.customer.groupBy({
+        by: ["source"],
+        where,
+        _count: true,
+      }),
+      db.customer.groupBy({
+        by: ["stage"],
+        where,
+        _count: true,
+      }),
+    ]);
 
   const monthly = groupByMonth(customers);
 
@@ -91,9 +114,18 @@ async function getCustomersReport(where: Record<string, unknown>) {
       status: formatStage(s.status),
       count: s._count,
     })),
+    sourceBreakdown: sourceBreakdown.map((s) => ({
+      source: s.source ? formatStage(s.source) : "Unknown",
+      count: s._count,
+    })),
+    stageBreakdown: stageBreakdown.map((s) => ({
+      stage: s.stage ? formatStage(s.stage) : "Unknown",
+      count: s._count,
+    })),
   };
 }
 
+// ── Leads Report ─────────────────────────────────────────────
 async function getLeadsReport(where: Record<string, unknown>) {
   const [leads, stageBreakdown, sourceBreakdown] = await Promise.all([
     db.lead.findMany({
@@ -115,14 +147,20 @@ async function getLeadsReport(where: Record<string, unknown>) {
   const monthly = groupByMonth(leads);
   const totalLeads = leads.length;
   const closedWon = leads.filter((l) => l.stage === "closed_won").length;
+  const qualified = leads.filter((l) => l.stage === "qualification" || l.stage === "proposal" || l.stage === "negotiation" || l.stage === "closed_won").length;
   const conversionRate =
     totalLeads > 0 ? (closedWon / totalLeads) * 100 : 0;
+  const qualificationRate =
+    totalLeads > 0 ? (qualified / totalLeads) * 100 : 0;
 
   return {
     type: "leads",
     summary: {
       totalLeads,
+      closedWon,
+      qualified,
       conversionRate: Math.round(conversionRate * 10) / 10,
+      qualificationRate: Math.round(qualificationRate * 10) / 10,
     },
     monthly,
     stageBreakdown: stageBreakdown.map((s) => ({
@@ -136,51 +174,143 @@ async function getLeadsReport(where: Record<string, unknown>) {
   };
 }
 
-async function getTicketsReport(where: Record<string, unknown>) {
-  const [tickets, statusBreakdown, priorityBreakdown] = await Promise.all([
-    db.ticket.findMany({
+// ── Vouchers Report ──────────────────────────────────────────
+async function getVouchersReport(where: Record<string, unknown>) {
+  const [vouchers, statusBreakdown, typeBreakdown, customerVouchers] =
+    await Promise.all([
+      db.voucher.findMany({
+        where,
+        select: {
+          id: true,
+          value: true,
+          type: true,
+          status: true,
+          usageLimit: true,
+          usedCount: true,
+          createdAt: true,
+        },
+      }),
+      db.voucher.groupBy({
+        by: ["status"],
+        where,
+        _count: true,
+      }),
+      db.voucher.groupBy({
+        by: ["type"],
+        where,
+        _count: true,
+      }),
+      db.customerVoucher.findMany({
+        where: {
+          voucher: where,
+        },
+        select: { status: true, quantity: true, createdAt: true },
+      }),
+    ]);
+
+  const monthly = groupByMonth(vouchers);
+  const totalVouchers = vouchers.length;
+  const activeVouchers = vouchers.filter((v) => v.status === "active").length;
+  const totalUsed = vouchers.reduce((sum, v) => sum + v.usedCount, 0);
+  const totalAssigned = customerVouchers.reduce((sum, cv) => sum + cv.quantity, 0);
+  const totalValue = vouchers.reduce((sum, v) => sum + (v.value || 0), 0);
+
+  const assignmentMonthly = groupByMonth(
+    customerVouchers.map((cv) => ({ createdAt: cv.createdAt }))
+  );
+
+  return {
+    type: "vouchers",
+    summary: {
+      totalVouchers,
+      activeVouchers,
+      totalAssigned,
+      totalUsed,
+      totalValue: Math.round(totalValue * 100) / 100,
+    },
+    monthly,
+    assignmentMonthly,
+    statusBreakdown: statusBreakdown.map((s) => ({
+      status: formatStage(s.status),
+      count: s._count,
+    })),
+    typeBreakdown: typeBreakdown.map((t) => ({
+      type: formatStage(t.type),
+      count: t._count,
+    })),
+  };
+}
+
+// ── Campaigns Report ─────────────────────────────────────────
+async function getCampaignsReport(where: Record<string, unknown>) {
+  const [campaigns, statusBreakdown, typeBreakdown] = await Promise.all([
+    db.campaign.findMany({
       where,
-      select: { createdAt: true, resolvedAt: true },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        type: true,
+        createdAt: true,
+        _count: { select: { members: true, stages: true } },
+      },
     }),
-    db.ticket.groupBy({
+    db.campaign.groupBy({
       by: ["status"],
       where,
       _count: true,
     }),
-    db.ticket.groupBy({
-      by: ["priority"],
+    db.campaign.groupBy({
+      by: ["type"],
       where,
       _count: true,
     }),
   ]);
 
-  const monthly = groupByMonth(tickets);
-  const totalTickets = tickets.length;
-  const resolved = tickets.filter((t) => t.resolvedAt);
-  const avgResolutionMs =
-    resolved.length > 0
-      ? resolved.reduce(
-          (sum, t) =>
-            sum +
-            (new Date(t.resolvedAt!).getTime() -
-              new Date(t.createdAt).getTime()),
-          0
-        ) / resolved.length
-      : 0;
-  const avgResolutionHours = Math.round((avgResolutionMs / 3600000) * 10) / 10;
+  const monthly = groupByMonth(campaigns);
+  const totalCampaigns = campaigns.length;
+  const activeCampaigns = campaigns.filter(
+    (c) => c.status === "running" || c.status === "scheduled"
+  ).length;
+  const totalMembers = campaigns.reduce((sum, c) => sum + c._count.members, 0);
+
+  const campaignIds = campaigns.map((c) => c.id);
+
+  let membersByViaRaw: any[] = [];
+  if (campaignIds.length > 0) {
+    membersByViaRaw = await (db.campaignMember.groupBy as any)({
+      by: ["addedVia"],
+      where: { campaignId: { in: campaignIds } },
+      _count: true,
+    });
+  }
+
+  const topCampaigns = campaigns
+    .sort((a, b) => b._count.members - a._count.members)
+    .slice(0, 10)
+    .map((c) => ({ name: c.name, members: c._count.members, status: c.status }));
 
   return {
-    type: "tickets",
-    summary: { totalTickets, avgResolutionHours },
+    type: "campaigns",
+    summary: {
+      totalCampaigns,
+      activeCampaigns,
+      totalMembers,
+    },
     monthly,
     statusBreakdown: statusBreakdown.map((s) => ({
       status: formatStage(s.status),
       count: s._count,
     })),
-    priorityBreakdown: priorityBreakdown.map((p) => ({
-      priority: formatStage(p.priority),
-      count: p._count,
+    typeBreakdown: typeBreakdown.map((t) => ({
+      type: formatStage(t.type),
+      count: t._count,
     })),
+    membersByVia: membersByViaRaw.map((m: any) => ({
+      via: formatStage(m.addedVia),
+      count: m._count,
+    })),
+    topCampaigns,
   };
 }
 
@@ -215,8 +345,10 @@ export async function GET(req: NextRequest) {
         return NextResponse.json(await getCustomersReport(where));
       case "leads":
         return NextResponse.json(await getLeadsReport(where));
-      case "tickets":
-        return NextResponse.json(await getTicketsReport(where));
+      case "vouchers":
+        return NextResponse.json(await getVouchersReport(where));
+      case "campaigns":
+        return NextResponse.json(await getCampaignsReport(where));
       default:
         return NextResponse.json(
           { error: "Invalid report type" },

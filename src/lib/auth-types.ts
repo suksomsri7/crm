@@ -18,23 +18,35 @@ export interface SessionUser {
 }
 
 export type ResourceAction =
+  | "dashboard:read"
   | "customers:read"
   | "customers:write"
   | "customers:delete"
+  | "customers:import"
+  | "customers:export"
   | "leads:read"
   | "leads:write"
   | "leads:delete"
+  | "leads:import"
+  | "leads:export"
   | "deals:read"
   | "deals:write"
   | "deals:delete"
   | "campaigns:read"
   | "campaigns:write"
   | "campaigns:delete"
+  | "campaigns:import"
   | "tickets:read"
   | "tickets:write"
   | "tickets:delete"
   | "reports:read"
   | "reports:export"
+  | "sources:read"
+  | "sources:write"
+  | "sources:delete"
+  | "roles:read"
+  | "roles:write"
+  | "roles:delete"
   | "users:read"
   | "users:write"
   | "users:delete"
@@ -45,25 +57,32 @@ export type ResourceAction =
   | "settings:write";
 
 export const ALL_PERMISSIONS: ResourceAction[] = [
-  "customers:read", "customers:write", "customers:delete",
-  "leads:read", "leads:write", "leads:delete",
+  "dashboard:read",
+  "customers:read", "customers:write", "customers:delete", "customers:import", "customers:export",
+  "leads:read", "leads:write", "leads:delete", "leads:import", "leads:export",
   "deals:read", "deals:write", "deals:delete",
-  "campaigns:read", "campaigns:write", "campaigns:delete",
+  "campaigns:read", "campaigns:write", "campaigns:delete", "campaigns:import",
   "tickets:read", "tickets:write", "tickets:delete",
   "reports:read", "reports:export",
+  "sources:read", "sources:write", "sources:delete",
+  "roles:read", "roles:write", "roles:delete",
   "users:read", "users:write", "users:delete",
   "brands:read", "brands:write", "brands:delete",
   "settings:read", "settings:write",
 ];
 
 export const PERMISSION_GROUPS: Record<string, { label: string; permissions: ResourceAction[] }> = {
-  customers: {
-    label: "Customers",
-    permissions: ["customers:read", "customers:write", "customers:delete"],
+  dashboard: {
+    label: "Dashboard",
+    permissions: ["dashboard:read"],
   },
   leads: {
     label: "Leads",
-    permissions: ["leads:read", "leads:write", "leads:delete"],
+    permissions: ["leads:read", "leads:write", "leads:delete", "leads:import", "leads:export"],
+  },
+  customers: {
+    label: "Customers",
+    permissions: ["customers:read", "customers:write", "customers:delete", "customers:import", "customers:export"],
   },
   deals: {
     label: "Deals",
@@ -71,15 +90,23 @@ export const PERMISSION_GROUPS: Record<string, { label: string; permissions: Res
   },
   campaigns: {
     label: "Campaigns",
-    permissions: ["campaigns:read", "campaigns:write", "campaigns:delete"],
+    permissions: ["campaigns:read", "campaigns:write", "campaigns:delete", "campaigns:import"],
   },
-  tickets: {
-    label: "Tickets",
+  vouchers: {
+    label: "Vouchers",
     permissions: ["tickets:read", "tickets:write", "tickets:delete"],
   },
   reports: {
     label: "Reports",
     permissions: ["reports:read", "reports:export"],
+  },
+  sources: {
+    label: "Sources",
+    permissions: ["sources:read", "sources:write", "sources:delete"],
+  },
+  roles: {
+    label: "Roles",
+    permissions: ["roles:read", "roles:write", "roles:delete"],
   },
   users: {
     label: "Users",

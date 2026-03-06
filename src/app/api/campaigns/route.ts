@@ -5,12 +5,14 @@ import { z } from "zod";
 
 const campaignSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  type: z.enum(["email", "sms", "social"]),
+  type: z.enum(["email", "sms", "social", "event", "custom"]).optional().default("custom"),
   status: z.enum(["draft", "scheduled", "running", "completed", "paused"]).optional().default("draft"),
   subject: z.string().optional().nullable(),
   content: z.string().optional().nullable(),
   targetSegment: z.any().optional().nullable(),
   budget: z.number().min(0).optional().nullable(),
+  startDate: z.string().optional().nullable(),
+  endDate: z.string().optional().nullable(),
   scheduledAt: z.string().datetime().optional().nullable(),
 });
 
@@ -54,6 +56,10 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
       skip,
       take: limit,
+      include: {
+        createdBy: { select: { id: true, fullName: true } },
+        _count: { select: { members: true, stages: true } },
+      },
     }),
     db.campaign.count({ where }),
   ]);
@@ -90,6 +96,7 @@ export async function POST(req: NextRequest) {
   const campaign = await db.campaign.create({
     data: {
       brandId,
+      createdById: user.id,
       name: parsed.data.name,
       type: parsed.data.type,
       status: parsed.data.status,
@@ -97,8 +104,23 @@ export async function POST(req: NextRequest) {
       content: parsed.data.content ?? null,
       targetSegment: parsed.data.targetSegment ?? undefined,
       budget: parsed.data.budget ?? null,
+      startDate: parsed.data.startDate ? new Date(parsed.data.startDate) : null,
+      endDate: parsed.data.endDate ? new Date(parsed.data.endDate) : null,
       scheduledAt: parsed.data.scheduledAt ? new Date(parsed.data.scheduledAt) : null,
     },
+  });
+
+  const defaultStages: Record<string, string[]> = {
+    email: ["Targeted", "Sent", "Opened", "Clicked", "Converted"],
+    sms: ["Targeted", "Sent", "Responded", "Converted"],
+    social: ["Targeted", "Reached", "Engaged", "Converted"],
+    event: ["Invited", "Registered", "Attended", "Follow-up", "Converted"],
+    custom: ["New", "In Progress", "Completed"],
+  };
+
+  const stages = defaultStages[parsed.data.type] || defaultStages.custom;
+  await db.campaignStage.createMany({
+    data: stages.map((name, i) => ({ campaignId: campaign.id, name, order: i })),
   });
 
   await db.auditLog.create({

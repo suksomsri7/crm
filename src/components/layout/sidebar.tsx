@@ -9,7 +9,7 @@ import {
   Target,
   HandCoins,
   Megaphone,
-  Ticket,
+  Gift,
   BarChart3,
   UserCog,
   Building2,
@@ -51,7 +51,7 @@ const CRM_ITEMS: NavItem[] = [
   { href: "/customers", label: "Customers", icon: Users, permission: "customers:read" },
   { href: "/deals", label: "Deals", icon: HandCoins, permission: "deals:read" },
   { href: "/campaigns", label: "Campaigns", icon: Megaphone, permission: "campaigns:read" },
-  { href: "/tickets", label: "Tickets", icon: Ticket, permission: "tickets:read" },
+  { href: "/vouchers", label: "Vouchers", icon: Gift, permission: "tickets:read" },
   { href: "/reports", label: "Reports", icon: BarChart3, permission: "reports:read" },
 ];
 
