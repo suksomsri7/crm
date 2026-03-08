@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { auth } from "@/lib/auth";
 
 export async function GET() {
   const checks: Record<string, unknown> = {
@@ -8,13 +9,11 @@ export async function GET() {
       hasAuthSecret: !!process.env.AUTH_SECRET,
       authSecretLength: process.env.AUTH_SECRET?.length ?? 0,
       hasDatabaseUrl: !!process.env.DATABASE_URL,
-      hasAuthUrl: !!process.env.AUTH_URL,
-      authUrl: process.env.AUTH_URL ?? "(not set)",
       nodeEnv: process.env.NODE_ENV,
       vercel: process.env.VERCEL ?? "(not set)",
-      vercelUrl: process.env.VERCEL_URL ?? "(not set)",
     },
     prisma: { status: "unknown" },
+    session: { status: "unknown" },
   };
 
   try {
@@ -31,6 +30,31 @@ export async function GET() {
     };
   } catch (err: any) {
     checks.prisma = { status: "error", error: err?.message };
+  }
+
+  try {
+    const session = await auth();
+    if (session?.user) {
+      const u = session.user as any;
+      checks.session = {
+        status: "authenticated",
+        hasName: !!u.name,
+        name: u.name,
+        hasEmail: !!u.email,
+        hasId: !!u.id,
+        hasUsername: !!u.username,
+        username: u.username ?? "(missing)",
+        isSuperAdmin: u.isSuperAdmin ?? "(missing)",
+        hasBrands: !!u.brands,
+        brandsCount: u.brands?.length ?? 0,
+        hasActiveBrandId: !!u.activeBrandId,
+        allKeys: Object.keys(u),
+      };
+    } else {
+      checks.session = { status: "not authenticated", raw: session };
+    }
+  } catch (err: any) {
+    checks.session = { status: "error", error: err?.message };
   }
 
   return NextResponse.json(checks);
