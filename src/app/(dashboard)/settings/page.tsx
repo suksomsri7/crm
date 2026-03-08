@@ -77,8 +77,8 @@ export default function SettingsPage() {
                   <Input value={user?.name ?? ""} disabled />
                 </div>
                 <div className="space-y-2">
-                  <Label>Email</Label>
-                  <Input value={user?.email ?? ""} disabled />
+                  <Label>Username</Label>
+                  <Input value={user?.username ?? ""} disabled />
                 </div>
               </div>
               <div className="flex items-center gap-2">

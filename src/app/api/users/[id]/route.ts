@@ -6,7 +6,8 @@ import bcrypt from "bcryptjs";
 
 const updateSchema = z.object({
   fullName: z.string().min(1).optional(),
-  email: z.string().email().optional(),
+  username: z.string().min(3).optional(),
+  email: z.string().email().optional().or(z.literal("")),
   password: z.string().min(8).optional(),
   isActive: z.boolean().optional(),
   isSuperAdmin: z.boolean().optional(),
@@ -32,7 +33,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const updated = await db.user.update({
     where: { id },
     data,
-    select: { id: true, email: true, fullName: true, isSuperAdmin: true, isActive: true },
+    select: { id: true, username: true, email: true, fullName: true, isSuperAdmin: true, isActive: true },
   });
 
   await db.auditLog.create({

@@ -71,7 +71,8 @@ type UserBrand = {
 
 type User = {
   id: string;
-  email: string;
+  username: string;
+  email: string | null;
   fullName: string;
   isSuperAdmin: boolean;
   isActive: boolean;
@@ -111,14 +112,14 @@ export default function UsersPage() {
 
   // Create form
   const [formFullName, setFormFullName] = useState("");
-  const [formEmail, setFormEmail] = useState("");
+  const [formUsername, setFormUsername] = useState("");
   const [formPassword, setFormPassword] = useState("");
   const [formIsSuperAdmin, setFormIsSuperAdmin] = useState(false);
   const [createSubmitting, setCreateSubmitting] = useState(false);
 
   // Edit form
   const [editFullName, setEditFullName] = useState("");
-  const [editEmail, setEditEmail] = useState("");
+  const [editUsername, setEditUsername] = useState("");
   const [editPassword, setEditPassword] = useState("");
   const [editIsActive, setEditIsActive] = useState(true);
   const [editIsSuperAdmin, setEditIsSuperAdmin] = useState(false);
@@ -195,12 +196,12 @@ export default function UsersPage() {
   const filteredUsers = users.filter(
     (u) =>
       u.fullName.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase())
+      u.username.toLowerCase().includes(search.toLowerCase())
   );
 
   const openCreateDialog = () => {
     setFormFullName("");
-    setFormEmail("");
+    setFormUsername("");
     setFormPassword("");
     setFormIsSuperAdmin(false);
     setCreateDialogOpen(true);
@@ -209,7 +210,7 @@ export default function UsersPage() {
   const openEditDialog = (user: User) => {
     setEditingUser(user);
     setEditFullName(user.fullName);
-    setEditEmail(user.email);
+    setEditUsername(user.username);
     setEditPassword("");
     setEditIsActive(user.isActive);
     setEditIsSuperAdmin(user.isSuperAdmin);
@@ -225,8 +226,8 @@ export default function UsersPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formFullName.trim() || !formEmail.trim() || !formPassword) {
-      toast.error("Full name, email, and password are required");
+    if (!formFullName.trim() || !formUsername.trim() || !formPassword) {
+      toast.error("Full name, username, and password are required");
       return;
     }
     if (formPassword.length < 8) {
@@ -240,7 +241,7 @@ export default function UsersPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           fullName: formFullName.trim(),
-          email: formEmail.trim(),
+          username: formUsername.trim(),
           password: formPassword,
           isSuperAdmin: formIsSuperAdmin,
         }),
@@ -262,8 +263,8 @@ export default function UsersPage() {
   const handleEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingUser) return;
-    if (!editFullName.trim() || !editEmail.trim()) {
-      toast.error("Full name and email are required");
+    if (!editFullName.trim() || !editUsername.trim()) {
+      toast.error("Full name and username are required");
       return;
     }
     if (editPassword && editPassword.length < 8) {
@@ -274,7 +275,7 @@ export default function UsersPage() {
     try {
       const body: Record<string, unknown> = {
         fullName: editFullName.trim(),
-        email: editEmail.trim(),
+        username: editUsername.trim(),
         isActive: editIsActive,
         isSuperAdmin: editIsSuperAdmin,
       };
@@ -410,7 +411,7 @@ export default function UsersPage() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
-                placeholder="Search by name or email..."
+                placeholder="Search by name or username..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9 w-64 h-9"
@@ -439,13 +440,13 @@ export default function UsersPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="create-email">Email</Label>
+                    <Label htmlFor="create-username">Username</Label>
                     <Input
-                      id="create-email"
-                      type="email"
-                      value={formEmail}
-                      onChange={(e) => setFormEmail(e.target.value)}
-                      placeholder="email@example.com"
+                      id="create-username"
+                      type="text"
+                      value={formUsername}
+                      onChange={(e) => setFormUsername(e.target.value)}
+                      placeholder="Enter username"
                       required
                     />
                   </div>
@@ -512,7 +513,7 @@ export default function UsersPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>User</TableHead>
-                  <TableHead>Email</TableHead>
+                  <TableHead>Username</TableHead>
                   <TableHead>Brands</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Super Admin</TableHead>
@@ -531,7 +532,7 @@ export default function UsersPage() {
                         <span className="font-medium">{user.fullName}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{user.email}</TableCell>
+                    <TableCell className="text-muted-foreground">{user.username}</TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
                         {user.userBrands.length === 0 ? (
@@ -644,13 +645,13 @@ export default function UsersPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-email">Email</Label>
+                <Label htmlFor="edit-username">Username</Label>
                 <Input
-                  id="edit-email"
-                  type="email"
-                  value={editEmail}
-                  onChange={(e) => setEditEmail(e.target.value)}
-                  placeholder="email@example.com"
+                  id="edit-username"
+                  type="text"
+                  value={editUsername}
+                  onChange={(e) => setEditUsername(e.target.value)}
+                  placeholder="Enter username"
                   required
                 />
               </div>

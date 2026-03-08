@@ -7,20 +7,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     Credentials({
       credentials: {
-        email: { label: "Email", type: "email" },
+        username: { label: "Username", type: "text" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
         try {
-          if (!credentials?.email || !credentials?.password) {
+          if (!credentials?.username || !credentials?.password) {
             console.log("[auth] Missing credentials");
             return null;
           }
 
-          console.log("[auth] Attempting login for:", credentials.email);
+          console.log("[auth] Attempting login for:", credentials.username);
 
           const user = await db.user.findUnique({
-            where: { email: credentials.email as string },
+            where: { username: credentials.username as string },
             include: {
               userBrands: {
                 include: {
@@ -59,9 +59,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
           return {
             id: user.id,
-            email: user.email,
+            email: user.email ?? undefined,
             name: user.fullName,
             image: user.avatarUrl,
+            username: user.username,
             isSuperAdmin: user.isSuperAdmin,
             brands: user.userBrands.map((ub) => ({
               id: ub.brand.id,
@@ -90,6 +91,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (user) {
         const u = user as any;
         token.id = u.id;
+        token.username = u.username;
         token.isSuperAdmin = u.isSuperAdmin;
         token.brands = u.brands;
         if (u.brands?.length > 0) {
@@ -101,6 +103,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async session({ session, token }) {
       if (session.user) {
         (session.user as any).id = token.id;
+        (session.user as any).username = token.username;
         (session.user as any).isSuperAdmin = token.isSuperAdmin;
         (session.user as any).brands = token.brands;
         (session.user as any).activeBrandId = token.activeBrandId;

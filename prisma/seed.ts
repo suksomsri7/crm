@@ -60,19 +60,19 @@ async function main() {
   console.log(`Created ${PERMISSIONS.length} permissions`);
 
   console.log("Creating Super Admin user...");
-  const hashedPassword = await bcrypt.hash("admin123", 12);
+  const hashedPassword = await bcrypt.hash("@Superadmin252322", 12);
 
   const admin = await prisma.user.upsert({
-    where: { email: "admin@crm.com" },
+    where: { username: "superadmin" },
     update: {},
     create: {
-      email: "admin@crm.com",
+      username: "superadmin",
       password: hashedPassword,
       fullName: "Super Admin",
       isSuperAdmin: true,
     },
   });
-  console.log(`Super Admin created: ${admin.email} (password: admin123)`);
+  console.log(`Super Admin created: ${admin.username}`);
 
   console.log("Seed completed!");
 }

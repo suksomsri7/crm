@@ -52,15 +52,15 @@ export function LoginForm() {
       <CardContent>
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="username">Username</Label>
             <Input
-              id="email"
-              name="email"
-              type="email"
+              id="username"
+              name="username"
+              type="text"
               required
-              placeholder="name@company.com"
+              placeholder="Enter your username"
               disabled={isPending}
-              autoComplete="email"
+              autoComplete="username"
             />
           </div>
           <div className="space-y-2">

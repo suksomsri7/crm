@@ -226,8 +226,8 @@ export function Topbar({ isCollapsed, onToggle }: { isCollapsed: boolean; onTogg
             <DropdownMenuLabel>
               <div className="flex flex-col">
                 <span>{user?.name}</span>
-                {user?.email && (
-                  <span className="text-xs font-normal text-muted-foreground">{user.email}</span>
+                {(user as any)?.username && (
+                  <span className="text-xs font-normal text-muted-foreground">{(user as any).username}</span>
                 )}
               </div>
             </DropdownMenuLabel>
