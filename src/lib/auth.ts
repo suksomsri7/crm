@@ -11,9 +11,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        // #region agent log
-        fetch('http://127.0.0.1:7682/ingest/b70e1de7-b1ca-437c-8f3d-79f7aafa5e30',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'38128a'},body:JSON.stringify({sessionId:'38128a',location:'auth.ts:authorize-entry',message:'authorize called',data:{hasUsername:!!credentials?.username,hasPassword:!!credentials?.password,credentialKeys:credentials?Object.keys(credentials):null},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-        // #endregion
         try {
           if (!credentials?.username || !credentials?.password) {
             console.log("[auth] Missing credentials");
@@ -22,10 +19,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
           console.log("[auth] Attempting login for:", credentials.username);
 
-          let user;
-          try {
-            user = await db.user.findUnique({
-              where: { username: credentials.username as string },
+          const user = await db.user.findUnique({
+            where: { username: credentials.username as string },
             include: {
               userBrands: {
                 include: {
@@ -41,15 +36,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               },
             },
           });
-          // #region agent log
-          fetch('http://127.0.0.1:7682/ingest/b70e1de7-b1ca-437c-8f3d-79f7aafa5e30',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'38128a'},body:JSON.stringify({sessionId:'38128a',location:'auth.ts:db-query-success',message:'Prisma query completed',data:{userFound:!!user,userId:user?.id,username:user?.username},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-          // #endregion
-          } catch (dbError: any) {
-            // #region agent log
-            fetch('http://127.0.0.1:7682/ingest/b70e1de7-b1ca-437c-8f3d-79f7aafa5e30',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'38128a'},body:JSON.stringify({sessionId:'38128a',location:'auth.ts:db-query-error',message:'Prisma query FAILED',data:{error:dbError?.message,code:dbError?.code},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-            // #endregion
-            throw dbError;
-          }
 
           if (!user) {
             console.log("[auth] User not found");
@@ -69,7 +55,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             return null;
           }
 
-          console.log("[auth] Login successful for:", user.email);
+          console.log("[auth] Login successful for:", user.username);
 
           return {
             id: user.id,
@@ -89,10 +75,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               ),
             })),
           };
-        } catch (error: any) {
-          // #region agent log
-          fetch('http://127.0.0.1:7682/ingest/b70e1de7-b1ca-437c-8f3d-79f7aafa5e30',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'38128a'},body:JSON.stringify({sessionId:'38128a',location:'auth.ts:authorize-catch',message:'authorize threw error',data:{error:error?.message,stack:error?.stack?.substring(0,500)},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
-          // #endregion
+        } catch (error) {
           console.error("[auth] Authorize error:", error);
           return null;
         }
