@@ -16,13 +16,13 @@ export async function GET(req: NextRequest) {
     if (!hasBrand) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const [leads, stages] = await Promise.all([
-    db.lead.findMany({ where: { brandId }, orderBy: { createdAt: "desc" } }),
-    db.leadStage.findMany({ where: { brandId } }),
-  ]);
+  const leads = await db.lead.findMany({ where: { brandId }, orderBy: { createdAt: "desc" } });
 
   const stageNames: Record<string, string> = {};
-  for (const s of stages) stageNames[s.id] = s.name;
+  try {
+    const stages = await db.leadStage.findMany({ where: { brandId } });
+    for (const s of stages) stageNames[s.id] = s.name;
+  } catch {}
 
   const headers = ["firstName", "lastName", "email", "phone", "source", "stage", "interest", "notes", "createdAt"];
   const csv = [

@@ -91,8 +91,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   });
 
   if (parsed.data.stage && parsed.data.stage !== existing.stage) {
-    const stageRecord = await db.leadStage.findUnique({ where: { id: parsed.data.stage } });
-    const stageLabel = stageRecord?.name || parsed.data.stage;
+    let stageLabel = parsed.data.stage;
+    try {
+      const stageRecord = await db.leadStage.findUnique({ where: { id: parsed.data.stage } });
+      if (stageRecord) stageLabel = stageRecord.name;
+    } catch {}
     await db.activity.create({
       data: {
         brandId: lead.brandId,

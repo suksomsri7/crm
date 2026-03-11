@@ -2,43 +2,44 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
-const OLD_STAGE_MAP: Record<string, { name: string; color: string }> = {
-  prospecting: { name: "Prospecting", color: "#3b82f6" },
-  qualification: { name: "Qualification", color: "#8b5cf6" },
-  proposal: { name: "Proposal", color: "#f59e0b" },
-  negotiation: { name: "Negotiation", color: "#ef4444" },
-  closed_won: { name: "Closed Won", color: "#22c55e" },
-  closed_lost: { name: "Closed Lost", color: "#6b7280" },
-};
+const FALLBACK_STAGES = [
+  { key: "prospecting", name: "Prospecting", color: "#3b82f6" },
+  { key: "qualification", name: "Qualification", color: "#8b5cf6" },
+  { key: "proposal", name: "Proposal", color: "#f59e0b" },
+  { key: "negotiation", name: "Negotiation", color: "#ef4444" },
+  { key: "closed_won", name: "Closed Won", color: "#22c55e" },
+  { key: "closed_lost", name: "Closed Lost", color: "#6b7280" },
+];
 
-async function ensureStagesExist(brandId: string) {
-  const existing = await db.leadStage.findMany({ where: { brandId }, orderBy: { order: "asc" } });
-  if (existing.length > 0) return existing;
+async function getStagesWithMigration(brandId: string) {
+  try {
+    const existing = await db.leadStage.findMany({ where: { brandId }, orderBy: { order: "asc" } });
 
-  const defaults = Object.entries(OLD_STAGE_MAP).map(([key, val], i) => ({
-    brandId,
-    name: val.name,
-    color: val.color,
-    order: i,
-  }));
+    if (existing.length > 0) return { stages: existing, mode: "db" as const };
 
-  await db.leadStage.createMany({ data: defaults });
-  const stages = await db.leadStage.findMany({ where: { brandId }, orderBy: { order: "asc" } });
+    const defaults = FALLBACK_STAGES.map((s, i) => ({
+      brandId,
+      name: s.name,
+      color: s.color,
+      order: i,
+    }));
 
-  const stageIdByOldKey: Record<string, string> = {};
-  for (const stage of stages) {
-    const oldKey = Object.entries(OLD_STAGE_MAP).find(([, v]) => v.name === stage.name)?.[0];
-    if (oldKey) stageIdByOldKey[oldKey] = stage.id;
+    await db.leadStage.createMany({ data: defaults });
+    const stages = await db.leadStage.findMany({ where: { brandId }, orderBy: { order: "asc" } });
+
+    const stageIdByOldKey: Record<string, string> = {};
+    for (const stage of stages) {
+      const match = FALLBACK_STAGES.find((f) => f.name === stage.name);
+      if (match) stageIdByOldKey[match.key] = stage.id;
+    }
+    for (const [oldKey, newId] of Object.entries(stageIdByOldKey)) {
+      await db.lead.updateMany({ where: { brandId, stage: oldKey }, data: { stage: newId } });
+    }
+
+    return { stages, mode: "db" as const };
+  } catch {
+    return { stages: null, mode: "fallback" as const };
   }
-
-  for (const [oldKey, newId] of Object.entries(stageIdByOldKey)) {
-    await db.lead.updateMany({
-      where: { brandId, stage: oldKey },
-      data: { stage: newId },
-    });
-  }
-
-  return stages;
 }
 
 export async function GET(req: NextRequest) {
@@ -55,8 +56,6 @@ export async function GET(req: NextRequest) {
     if (!hasBrand) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const stages = await ensureStagesExist(brandId);
-
   const leads = await db.lead.findMany({
     where: { brandId, status: { not: "converted" } },
     orderBy: { updatedAt: "desc" },
@@ -66,13 +65,25 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  const pipeline = stages.map((stage) => ({
-    stage: stage.id,
-    label: stage.name,
-    color: stage.color,
-    leads: leads.filter((l) => l.stage === stage.id),
-    count: leads.filter((l) => l.stage === stage.id).length,
-  }));
+  const result = await getStagesWithMigration(brandId);
 
+  if (result.mode === "db" && result.stages) {
+    const pipeline = result.stages.map((stage) => ({
+      stage: stage.id,
+      label: stage.name,
+      color: stage.color,
+      leads: leads.filter((l) => l.stage === stage.id),
+      count: leads.filter((l) => l.stage === stage.id).length,
+    }));
+    return NextResponse.json(pipeline);
+  }
+
+  const pipeline = FALLBACK_STAGES.map((s) => ({
+    stage: s.key,
+    label: s.name,
+    color: s.color,
+    leads: leads.filter((l) => l.stage === s.key),
+    count: leads.filter((l) => l.stage === s.key).length,
+  }));
   return NextResponse.json(pipeline);
 }

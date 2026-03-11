@@ -3,43 +3,53 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
-const OLD_STAGE_MAP: Record<string, { name: string; color: string }> = {
-  prospecting: { name: "Prospecting", color: "#3b82f6" },
-  qualification: { name: "Qualification", color: "#8b5cf6" },
-  proposal: { name: "Proposal", color: "#f59e0b" },
-  negotiation: { name: "Negotiation", color: "#ef4444" },
-  closed_won: { name: "Closed Won", color: "#22c55e" },
-  closed_lost: { name: "Closed Lost", color: "#6b7280" },
-};
+const FALLBACK_STAGES = [
+  { key: "prospecting", name: "Prospecting", color: "#3b82f6" },
+  { key: "qualification", name: "Qualification", color: "#8b5cf6" },
+  { key: "proposal", name: "Proposal", color: "#f59e0b" },
+  { key: "negotiation", name: "Negotiation", color: "#ef4444" },
+  { key: "closed_won", name: "Closed Won", color: "#22c55e" },
+  { key: "closed_lost", name: "Closed Lost", color: "#6b7280" },
+];
 
 async function ensureStagesExist(brandId: string) {
-  const existing = await db.leadStage.findMany({ where: { brandId }, orderBy: { order: "asc" } });
-  if (existing.length > 0) return existing;
+  try {
+    const existing = await db.leadStage.findMany({ where: { brandId }, orderBy: { order: "asc" } });
+    if (existing.length > 0) return { stages: existing, useFallback: false };
 
-  const defaults = Object.entries(OLD_STAGE_MAP).map(([key, val], i) => ({
-    brandId,
-    name: val.name,
-    color: val.color,
-    order: i,
-  }));
+    const defaults = FALLBACK_STAGES.map((s, i) => ({
+      brandId,
+      name: s.name,
+      color: s.color,
+      order: i,
+    }));
 
-  await db.leadStage.createMany({ data: defaults });
-  const stages = await db.leadStage.findMany({ where: { brandId }, orderBy: { order: "asc" } });
+    await db.leadStage.createMany({ data: defaults });
+    const stages = await db.leadStage.findMany({ where: { brandId }, orderBy: { order: "asc" } });
 
-  const stageIdByOldKey: Record<string, string> = {};
-  for (const stage of stages) {
-    const oldKey = Object.entries(OLD_STAGE_MAP).find(([, v]) => v.name === stage.name)?.[0];
-    if (oldKey) stageIdByOldKey[oldKey] = stage.id;
+    const stageIdByOldKey: Record<string, string> = {};
+    for (const stage of stages) {
+      const match = FALLBACK_STAGES.find((f) => f.name === stage.name);
+      if (match) stageIdByOldKey[match.key] = stage.id;
+    }
+    for (const [oldKey, newId] of Object.entries(stageIdByOldKey)) {
+      await db.lead.updateMany({ where: { brandId, stage: oldKey }, data: { stage: newId } });
+    }
+
+    return { stages, useFallback: false };
+  } catch {
+    return {
+      stages: FALLBACK_STAGES.map((s, i) => ({
+        id: s.key,
+        brandId,
+        name: s.name,
+        color: s.color,
+        order: i,
+        createdAt: new Date(),
+      })),
+      useFallback: true,
+    };
   }
-
-  for (const [oldKey, newId] of Object.entries(stageIdByOldKey)) {
-    await db.lead.updateMany({
-      where: { brandId, stage: oldKey },
-      data: { stage: newId },
-    });
-  }
-
-  return stages;
 }
 
 function canAccessBrand(user: any, brandId: string) {
@@ -56,8 +66,8 @@ export async function GET(req: NextRequest) {
   if (!brandId) return NextResponse.json({ error: "Brand ID required" }, { status: 400 });
   if (!canAccessBrand(user, brandId)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const stages = await ensureStagesExist(brandId);
-  return NextResponse.json(stages);
+  const result = await ensureStagesExist(brandId);
+  return NextResponse.json(result.stages);
 }
 
 const createSchema = z.object({
@@ -76,19 +86,23 @@ export async function POST(req: NextRequest) {
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
-  const maxOrder = await db.leadStage.aggregate({ where: { brandId: parsed.data.brandId }, _max: { order: true } });
-  const nextOrder = (maxOrder._max.order ?? -1) + 1;
+  try {
+    const maxOrder = await db.leadStage.aggregate({ where: { brandId: parsed.data.brandId }, _max: { order: true } });
+    const nextOrder = (maxOrder._max.order ?? -1) + 1;
 
-  const stage = await db.leadStage.create({
-    data: {
-      brandId: parsed.data.brandId,
-      name: parsed.data.name,
-      color: parsed.data.color || "#6b7280",
-      order: nextOrder,
-    },
-  });
+    const stage = await db.leadStage.create({
+      data: {
+        brandId: parsed.data.brandId,
+        name: parsed.data.name,
+        color: parsed.data.color || "#6b7280",
+        order: nextOrder,
+      },
+    });
 
-  return NextResponse.json(stage, { status: 201 });
+    return NextResponse.json(stage, { status: 201 });
+  } catch {
+    return NextResponse.json({ error: "Lead stages table not available. Please run: npx prisma db push" }, { status: 500 });
+  }
 }
 
 const updateSchema = z.object({
@@ -112,19 +126,23 @@ export async function PUT(req: NextRequest) {
   const parsed = bulkUpdateSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
-  const updates = parsed.data.stages.map((s) =>
-    db.leadStage.update({
-      where: { id: s.id },
-      data: {
-        ...(s.name !== undefined && { name: s.name }),
-        ...(s.color !== undefined && { color: s.color }),
-        ...(s.order !== undefined && { order: s.order }),
-      },
-    })
-  );
+  try {
+    const updates = parsed.data.stages.map((s) =>
+      db.leadStage.update({
+        where: { id: s.id },
+        data: {
+          ...(s.name !== undefined && { name: s.name }),
+          ...(s.color !== undefined && { color: s.color }),
+          ...(s.order !== undefined && { order: s.order }),
+        },
+      })
+    );
 
-  await db.$transaction(updates);
-  return NextResponse.json({ success: true });
+    await db.$transaction(updates);
+    return NextResponse.json({ success: true });
+  } catch {
+    return NextResponse.json({ error: "Lead stages table not available. Please run: npx prisma db push" }, { status: 500 });
+  }
 }
 
 export async function DELETE(req: NextRequest) {
@@ -137,17 +155,21 @@ export async function DELETE(req: NextRequest) {
   const id = searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Stage ID required" }, { status: 400 });
 
-  const stage = await db.leadStage.findUnique({ where: { id } });
-  if (!stage) return NextResponse.json({ error: "Stage not found" }, { status: 404 });
+  try {
+    const stage = await db.leadStage.findUnique({ where: { id } });
+    if (!stage) return NextResponse.json({ error: "Stage not found" }, { status: 404 });
 
-  const leadsUsingStage = await db.lead.count({ where: { stage: id } });
-  if (leadsUsingStage > 0) {
-    return NextResponse.json(
-      { error: `Cannot delete stage "${stage.name}" — ${leadsUsingStage} lead(s) are in this stage. Move them first.` },
-      { status: 400 }
-    );
+    const leadsUsingStage = await db.lead.count({ where: { stage: id } });
+    if (leadsUsingStage > 0) {
+      return NextResponse.json(
+        { error: `Cannot delete stage "${stage.name}" — ${leadsUsingStage} lead(s) are in this stage. Move them first.` },
+        { status: 400 }
+      );
+    }
+
+    await db.leadStage.delete({ where: { id } });
+    return NextResponse.json({ success: true });
+  } catch {
+    return NextResponse.json({ error: "Lead stages table not available. Please run: npx prisma db push" }, { status: 500 });
   }
-
-  await db.leadStage.delete({ where: { id } });
-  return NextResponse.json({ success: true });
 }

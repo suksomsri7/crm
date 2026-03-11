@@ -35,10 +35,13 @@ export async function POST(req: NextRequest) {
   const interestIdx = headers.indexOf("interest");
   const notesIdx = headers.indexOf("notes");
 
-  const brandStages = await db.leadStage.findMany({ where: { brandId }, orderBy: { order: "asc" } });
-  const stageNameToId: Record<string, string> = {};
-  for (const s of brandStages) stageNameToId[s.name.toLowerCase()] = s.id;
-  const defaultStageId = brandStages[0]?.id || "";
+  let stageNameToId: Record<string, string> = {};
+  let defaultStageId = "prospecting";
+  try {
+    const brandStages = await db.leadStage.findMany({ where: { brandId }, orderBy: { order: "asc" } });
+    for (const s of brandStages) stageNameToId[s.name.toLowerCase()] = s.id;
+    defaultStageId = brandStages[0]?.id || "prospecting";
+  } catch {}
 
   let imported = 0;
   let skipped = 0;

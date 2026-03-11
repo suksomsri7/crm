@@ -106,15 +106,19 @@ export async function POST(
         data: { customerId: customer.id },
       });
 
-      const closedWonStage = await tx.leadStage.findFirst({
-        where: { brandId: lead.brandId, name: { contains: "Closed Won", mode: "insensitive" } },
-      });
+      let closedStageId = lead.stage;
+      try {
+        const closedWonStage = await tx.leadStage.findFirst({
+          where: { brandId: lead.brandId, name: { contains: "Closed Won", mode: "insensitive" } },
+        });
+        if (closedWonStage) closedStageId = closedWonStage.id;
+      } catch {}
 
       await tx.lead.update({
         where: { id },
         data: {
           customerId: customer.id,
-          stage: closedWonStage?.id || lead.stage,
+          stage: closedStageId,
           status: "converted",
         },
       });

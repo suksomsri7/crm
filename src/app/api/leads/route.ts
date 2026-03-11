@@ -100,8 +100,12 @@ export async function POST(req: NextRequest) {
 
   let stageValue = parsed.data.stage;
   if (!stageValue) {
-    const defaultStage = await db.leadStage.findFirst({ where: { brandId }, orderBy: { order: "asc" } });
-    stageValue = defaultStage?.id || "prospecting";
+    try {
+      const defaultStage = await db.leadStage.findFirst({ where: { brandId }, orderBy: { order: "asc" } });
+      stageValue = defaultStage?.id || "prospecting";
+    } catch {
+      stageValue = "prospecting";
+    }
   }
 
   const lead = await db.lead.create({
