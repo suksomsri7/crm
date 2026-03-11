@@ -7,8 +7,7 @@ export function middleware(req: NextRequest) {
   const isPublicRoute =
     pathname === "/login" ||
     pathname === "/forgot-password" ||
-    pathname.startsWith("/api/auth") ||
-    pathname === "/api/health";
+    pathname.startsWith("/api/auth");
 
   const sessionToken =
     req.cookies.get("authjs.session-token")?.value ||
