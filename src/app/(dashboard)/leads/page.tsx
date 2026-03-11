@@ -1231,7 +1231,7 @@ export default function LeadsPage() {
       <Dialog open={importDialogOpen} onOpenChange={(open) => !open && (() => { setImportFile(null); setImportResult(null); setImportDialogOpen(false); })()}>
         <DialogContent className="sm:max-w-[440px]">
           <DialogHeader><DialogTitle>Import CSV</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">Upload a CSV file with columns: firstName, lastName, email, phone, source, stage, interest, notes</p>
+          <p className="text-sm text-muted-foreground">Upload a CSV file. Supported columns: externalId, titlePrefix, titlePrefixTh, firstName, firstNameTh, lastName, lastNameTh, nickname, sex, phone, email, source, stage, status, interest, birthDate, idCard, address, city, state, postalCode, country, notes</p>
           <input ref={importFileRef} type="file" accept=".csv" className="hidden" onChange={(e) => setImportFile(e.target.files?.[0] ?? null)} />
           <div className="flex flex-col gap-2">
             <Button variant="outline" onClick={() => importFileRef.current?.click()}><Upload className="size-4" />{importFile ? importFile.name : "Choose file"}</Button>

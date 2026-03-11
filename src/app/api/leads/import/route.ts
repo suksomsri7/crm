@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
+function idx(headers: string[], name: string) {
+  return headers.indexOf(name.toLowerCase());
+}
+
+function col(cols: string[], i: number): string | null {
+  return i >= 0 ? cols[i]?.trim() || null : null;
+}
+
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -26,14 +34,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "CSV must have header + at least 1 row" }, { status: 400 });
 
   const headers = lines[0].split(",").map((h) => h.trim().toLowerCase().replace(/"/g, ""));
-  const firstNameIdx = headers.indexOf("firstname");
-  const lastNameIdx = headers.indexOf("lastname");
-  const emailIdx = headers.indexOf("email");
-  const phoneIdx = headers.indexOf("phone");
-  const sourceIdx = headers.indexOf("source");
-  const stageIdx = headers.indexOf("stage");
-  const interestIdx = headers.indexOf("interest");
-  const notesIdx = headers.indexOf("notes");
+
+  const iExternalId = idx(headers, "externalid");
+  const iTitlePrefix = idx(headers, "titleprefix");
+  const iTitlePrefixTh = idx(headers, "titleprefixth");
+  const iFirstName = idx(headers, "firstname");
+  const iFirstNameTh = idx(headers, "firstnameth");
+  const iLastName = idx(headers, "lastname");
+  const iLastNameTh = idx(headers, "lastnameth");
+  const iNickname = idx(headers, "nickname");
+  const iSex = idx(headers, "sex");
+  const iPhone = idx(headers, "phone");
+  const iEmail = idx(headers, "email");
+  const iSource = idx(headers, "source");
+  const iStage = idx(headers, "stage");
+  const iStatus = idx(headers, "status");
+  const iInterest = idx(headers, "interest");
+  const iBirthDate = idx(headers, "birthdate");
+  const iIdCard = idx(headers, "idcard");
+  const iAddress = idx(headers, "address");
+  const iCity = idx(headers, "city");
+  const iState = idx(headers, "state");
+  const iPostalCode = idx(headers, "postalcode");
+  const iCountry = idx(headers, "country");
+  const iNotes = idx(headers, "notes");
 
   let stageNameToId: Record<string, string> = {};
   let defaultStageId = "prospecting";
@@ -43,22 +67,29 @@ export async function POST(req: NextRequest) {
     defaultStageId = brandStages[0]?.id || "prospecting";
   } catch {}
 
+  const validStatuses = ["new", "contacted", "qualified", "unqualified"];
+
   let imported = 0;
   let skipped = 0;
 
   for (let i = 1; i < lines.length; i++) {
     const cols = lines[i].split(",").map((c) => c.trim().replace(/"/g, ""));
-    const firstName = firstNameIdx >= 0 ? cols[firstNameIdx] : null;
-    const lastName = lastNameIdx >= 0 ? cols[lastNameIdx] : null;
+    const firstName = col(cols, iFirstName);
+    const lastName = col(cols, iLastName);
+    const email = col(cols, iEmail);
+    const phone = col(cols, iPhone);
     const title = [firstName, lastName].filter(Boolean).join(" ") || "Imported Lead";
 
-    if (!firstName && !lastName && (emailIdx < 0 || !cols[emailIdx]) && (phoneIdx < 0 || !cols[phoneIdx])) {
+    if (!firstName && !lastName && !email && !phone) {
       skipped++;
       continue;
     }
 
-    const rawStage = stageIdx >= 0 ? cols[stageIdx]?.toLowerCase().trim() : "";
+    const rawStage = col(cols, iStage)?.toLowerCase() || "";
     const resolvedStageId = stageNameToId[rawStage] || defaultStageId;
+
+    const rawStatus = col(cols, iStatus)?.toLowerCase() || "";
+    const resolvedStatus = validStatuses.includes(rawStatus) ? rawStatus : "new";
 
     try {
       await db.lead.create({
@@ -67,15 +98,29 @@ export async function POST(req: NextRequest) {
           createdById: user.id,
           assignedToId: user.id,
           title,
-          firstName: firstName || null,
-          lastName: lastName || null,
-          email: emailIdx >= 0 ? cols[emailIdx] || null : null,
-          phone: phoneIdx >= 0 ? cols[phoneIdx] || null : null,
-          source: sourceIdx >= 0 ? cols[sourceIdx] || null : null,
+          externalId: col(cols, iExternalId),
+          titlePrefix: col(cols, iTitlePrefix),
+          titlePrefixTh: col(cols, iTitlePrefixTh),
+          firstName,
+          firstNameTh: col(cols, iFirstNameTh),
+          lastName,
+          lastNameTh: col(cols, iLastNameTh),
+          nickname: col(cols, iNickname),
+          sex: col(cols, iSex),
+          phone,
+          email,
+          source: col(cols, iSource),
           stage: resolvedStageId,
-          status: "new",
-          interest: interestIdx >= 0 ? cols[interestIdx] || null : null,
-          notes: notesIdx >= 0 ? cols[notesIdx] || null : null,
+          status: resolvedStatus,
+          interest: col(cols, iInterest),
+          birthDate: col(cols, iBirthDate),
+          idCard: col(cols, iIdCard),
+          address: col(cols, iAddress),
+          city: col(cols, iCity),
+          state: col(cols, iState),
+          postalCode: col(cols, iPostalCode),
+          country: col(cols, iCountry),
+          notes: col(cols, iNotes),
         },
       });
       imported++;

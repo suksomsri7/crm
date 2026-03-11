@@ -21,23 +21,71 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: "desc" },
   });
 
-  const headers = ["name", "email", "phone", "company", "city", "country", "status", "tags", "notes", "createdAt"];
+  const headers = [
+    "externalId",
+    "name",
+    "titlePrefix",
+    "titlePrefixTh",
+    "firstName",
+    "firstNameTh",
+    "lastName",
+    "lastNameTh",
+    "nickname",
+    "sex",
+    "email",
+    "phone",
+    "company",
+    "source",
+    "stage",
+    "status",
+    "interest",
+    "birthDate",
+    "idCard",
+    "address",
+    "city",
+    "state",
+    "postalCode",
+    "country",
+    "tags",
+    "notes",
+    "createdAt",
+  ];
+
+  const esc = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
+
   const csv = [
     headers.join(","),
     ...customers.map((c) =>
       [
+        c.externalId || "",
         c.name,
+        c.titlePrefix || "",
+        c.titlePrefixTh || "",
+        c.firstName || "",
+        c.firstNameTh || "",
+        c.lastName || "",
+        c.lastNameTh || "",
+        c.nickname || "",
+        c.sex || "",
         c.email || "",
         c.phone || "",
         c.company || "",
-        c.city || "",
-        c.country || "",
+        c.source || "",
+        c.stage || "",
         c.status,
+        c.interest || "",
+        c.birthDate || "",
+        c.idCard || "",
+        c.address || "",
+        c.city || "",
+        c.state || "",
+        c.postalCode || "",
+        c.country || "",
         (c.tags || []).join(";"),
-        (c.notes || "").replace(/,/g, ";").replace(/\n/g, " "),
+        (c.notes || "").replace(/\n/g, " "),
         c.createdAt.toISOString(),
       ]
-        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+        .map(esc)
         .join(",")
     ),
   ].join("\n");

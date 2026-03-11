@@ -1497,7 +1497,7 @@ export default function CustomersPage() {
       <Dialog open={importDialogOpen} onOpenChange={(open) => !open && (() => { setImportFile(null); setImportResult(null); setImportDialogOpen(false); })()}>
         <DialogContent className="sm:max-w-[440px]">
           <DialogHeader><DialogTitle>Import CSV</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">Upload a CSV file with columns: name, email, phone, company, city, country, status</p>
+          <p className="text-sm text-muted-foreground">Upload a CSV file. Supported columns: externalId, name, titlePrefix, titlePrefixTh, firstName, firstNameTh, lastName, lastNameTh, nickname, sex, email, phone, company, source, stage, status, interest, birthDate, idCard, address, city, state, postalCode, country, tags, notes</p>
           <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={(e) => setImportFile(e.target.files?.[0] ?? null)} />
           <div className="flex flex-col gap-2">
             <Button variant="outline" onClick={() => fileInputRef.current?.click()}><Upload className="size-4" />{importFile ? importFile.name : "Choose file"}</Button>

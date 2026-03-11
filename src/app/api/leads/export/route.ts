@@ -24,22 +24,65 @@ export async function GET(req: NextRequest) {
     for (const s of stages) stageNames[s.id] = s.name;
   } catch {}
 
-  const headers = ["firstName", "lastName", "email", "phone", "source", "stage", "interest", "notes", "createdAt"];
+  const headers = [
+    "externalId",
+    "titlePrefix",
+    "titlePrefixTh",
+    "firstName",
+    "firstNameTh",
+    "lastName",
+    "lastNameTh",
+    "nickname",
+    "sex",
+    "phone",
+    "email",
+    "source",
+    "stage",
+    "status",
+    "interest",
+    "birthDate",
+    "idCard",
+    "address",
+    "city",
+    "state",
+    "postalCode",
+    "country",
+    "notes",
+    "createdAt",
+  ];
+
+  const esc = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
+
   const csv = [
     headers.join(","),
     ...leads.map((l) =>
       [
+        l.externalId || "",
+        l.titlePrefix || "",
+        l.titlePrefixTh || "",
         l.firstName || "",
+        l.firstNameTh || "",
         l.lastName || "",
-        l.email || "",
+        l.lastNameTh || "",
+        l.nickname || "",
+        l.sex || "",
         l.phone || "",
+        l.email || "",
         l.source || "",
         stageNames[l.stage] || l.stage,
+        l.status || "",
         l.interest || "",
-        (l.notes || "").replace(/,/g, ";").replace(/\n/g, " "),
+        l.birthDate || "",
+        l.idCard || "",
+        l.address || "",
+        l.city || "",
+        l.state || "",
+        l.postalCode || "",
+        l.country || "",
+        (l.notes || "").replace(/\n/g, " "),
         l.createdAt.toISOString(),
       ]
-        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+        .map(esc)
         .join(",")
     ),
   ].join("\n");
