@@ -1,16 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-function redirect(req: NextRequest, path: string) {
-  const url = req.nextUrl.clone();
-  url.pathname = path;
-  return NextResponse.redirect(url);
-}
-
 export function middleware(req: NextRequest) {
-  // With basePath: "/crm", req.nextUrl.pathname already excludes basePath.
-  // e.g. visiting /crm/login → pathname = "/login"
-  // NextURL.clone() re-adds basePath automatically on redirect.
   const { pathname } = req.nextUrl;
 
   const isPublicRoute =
@@ -24,17 +15,17 @@ export function middleware(req: NextRequest) {
 
   if (isPublicRoute) {
     if (sessionToken && (pathname === "/login" || pathname === "/forgot-password")) {
-      return redirect(req, "/dashboard");
+      return NextResponse.redirect(new URL("/dashboard", req.url));
     }
     return NextResponse.next();
   }
 
   if (!sessionToken) {
-    return redirect(req, "/login");
+    return NextResponse.redirect(new URL("/login", req.url));
   }
 
   if (pathname === "/") {
-    return redirect(req, "/dashboard");
+    return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
   return NextResponse.next();

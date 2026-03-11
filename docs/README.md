@@ -12,14 +12,10 @@
 | [INSTALL.md](./INSTALL.md) | DevOps / VPS | คู่มือติดตั้งบน VPS ด้วย Docker, Nginx, SSL |
 | [OPENCLAW-PROMPT.md](./OPENCLAW-PROMPT.md) | Agent OpenCLaw | คำสั่ง Prompt สำหรับตั้งค่า Agent |
 
-## Base Path
-
-API ทั้งหมดอยู่ภายใต้ path `/crm` เช่น `http://localhost:3000/crm/api/...`
-
 ## การใช้งานกับ Agent OpenCLaw
 
 1. อ่าน **API-AGENT.md** เพื่อเข้าใจ Flow และ Endpoints หลัก
-2. เรียก **GET /crm/api/entities/check** ก่อนเพิ่ม Lead/Customer ทุกครั้ง
+2. เรียก **GET /api/entities/check** ก่อนเพิ่ม Lead/Customer ทุกครั้ง
 3. ใช้ **externalId** (Customer ID) เพื่อป้องกันข้อมูลซ้ำ
 4. อ้างอิง **API-MANUAL.md** สำหรับรายละเอียด request/response เต็มรูปแบบ
 

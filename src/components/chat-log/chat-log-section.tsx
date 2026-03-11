@@ -95,7 +95,7 @@ export function ChatLogSection({
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const apiBase = `/crm/api/${entityType === "lead" ? "leads" : "customers"}/${entityId}/chat-logs`;
+  const apiBase = `/api/${entityType === "lead" ? "leads" : "customers"}/${entityId}/chat-logs`;
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);

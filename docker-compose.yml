@@ -24,8 +24,8 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-crm_secret_2024}@db:5432/crm
       AUTH_SECRET: ${AUTH_SECRET}
-      AUTH_URL: ${AUTH_URL:-http://localhost:3000/crm}
-      NEXTAUTH_URL: ${AUTH_URL:-http://localhost:3000/crm}
+      AUTH_URL: ${AUTH_URL:-http://localhost:3000}
+      NEXTAUTH_URL: ${AUTH_URL:-http://localhost:3000}
     volumes:
       - ./uploads:/app/public/uploads
     depends_on:

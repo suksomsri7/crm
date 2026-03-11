@@ -537,7 +537,7 @@ export default function ReportsPage() {
       if (dateFrom) params.set("dateFrom", dateFrom);
       if (dateTo) params.set("dateTo", dateTo);
 
-      const res = await fetch(`/crm/api/reports?${params.toString()}`);
+      const res = await fetch(`/api/reports?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch report");
       setData(await res.json());
     } catch {

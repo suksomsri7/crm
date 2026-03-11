@@ -318,7 +318,7 @@ export default function LeadsPage() {
     if (!activeBrand?.id) return;
     setLoading(true);
     try {
-      const res = await fetch(`/crm/api/leads/pipeline?brandId=${activeBrand.id}`);
+      const res = await fetch(`/api/leads/pipeline?brandId=${activeBrand.id}`);
       if (!res.ok) throw new Error("Failed to fetch pipeline");
       setPipeline(await res.json());
     } catch { toast.error("Failed to load pipeline"); }
@@ -334,7 +334,7 @@ export default function LeadsPage() {
       const params = new URLSearchParams({ brandId: activeBrand.id, page: String(page), limit: "20" });
       if (debouncedSearch) params.set("search", debouncedSearch);
       if (stageFilter !== "all") params.set("stage", stageFilter);
-      const res = await fetch(`/crm/api/leads?${params}`);
+      const res = await fetch(`/api/leads?${params}`);
       if (!res.ok) throw new Error("Failed to fetch leads");
       const data = await res.json();
       setLeads(data.leads);
@@ -348,7 +348,7 @@ export default function LeadsPage() {
 
   const fetchSources = useCallback(async () => {
     try {
-      const res = await fetch("/crm/api/sources?active=true");
+      const res = await fetch("/api/sources?active=true");
       if (!res.ok) return;
       const data = await res.json();
       setSourceOptions(data.sources);
@@ -358,7 +358,7 @@ export default function LeadsPage() {
   const fetchExtras = useCallback(async (leadId: string) => {
     setExtrasLoading(true);
     try {
-      const res = await fetch(`/crm/api/leads/${leadId}/extras`);
+      const res = await fetch(`/api/leads/${leadId}/extras`);
       if (!res.ok) throw new Error("Failed to fetch extras");
       setExtras(await res.json());
     } catch {
@@ -440,11 +440,11 @@ export default function LeadsPage() {
 
     try {
       if (editingLead) {
-        const res = await fetch(`/crm/api/leads/${editingLead.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        const res = await fetch(`/api/leads/${editingLead.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         if (!res.ok) throw new Error("Failed to update lead");
         toast.success("Lead updated");
       } else {
-        const res = await fetch("/crm/api/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, brandId: activeBrand.id }) });
+        const res = await fetch("/api/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, brandId: activeBrand.id }) });
         if (!res.ok) throw new Error("Failed to create lead");
         toast.success("Lead created");
       }
@@ -460,7 +460,7 @@ export default function LeadsPage() {
     if (!leadToDelete) return;
     setDeleteSubmitting(true);
     try {
-      const res = await fetch(`/crm/api/leads/${leadToDelete.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/leads/${leadToDelete.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete");
       toast.success("Lead deleted");
       setDeleteDialogOpen(false);
@@ -474,7 +474,7 @@ export default function LeadsPage() {
 
   const handleMoveStage = async (leadId: string, newStage: string) => {
     try {
-      const res = await fetch(`/crm/api/leads/${leadId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stage: newStage }) });
+      const res = await fetch(`/api/leads/${leadId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stage: newStage }) });
       if (!res.ok) throw new Error("Failed to move lead");
       toast.success("Lead moved");
       fetchPipeline();
@@ -487,9 +487,9 @@ export default function LeadsPage() {
     setExtrasSaving(true);
     try {
       if (recordId) {
-        await fetch(`/crm/api/leads/${editingLead.id}/extras`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type, recordId, data }) });
+        await fetch(`/api/leads/${editingLead.id}/extras`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type, recordId, data }) });
       } else {
-        await fetch(`/crm/api/leads/${editingLead.id}/extras`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type, data }) });
+        await fetch(`/api/leads/${editingLead.id}/extras`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type, data }) });
       }
       await fetchExtras(editingLead.id);
       toast.success("Saved");
@@ -500,7 +500,7 @@ export default function LeadsPage() {
   const deleteExtraRecord = async (type: string, recordId: string) => {
     if (!editingLead) return;
     try {
-      await fetch(`/crm/api/leads/${editingLead.id}/extras?type=${type}&recordId=${recordId}`, { method: "DELETE" });
+      await fetch(`/api/leads/${editingLead.id}/extras?type=${type}&recordId=${recordId}`, { method: "DELETE" });
       await fetchExtras(editingLead.id);
       toast.success("Deleted");
     } catch { toast.error("Failed to delete"); }
@@ -513,7 +513,7 @@ export default function LeadsPage() {
       for (const file of Array.from(files)) {
         const fd = new FormData();
         fd.append("file", file);
-        const res = await fetch(`/crm/api/leads/${editingLead.id}/files`, { method: "POST", body: fd });
+        const res = await fetch(`/api/leads/${editingLead.id}/files`, { method: "POST", body: fd });
         if (!res.ok) throw new Error("Upload failed");
       }
       await fetchExtras(editingLead.id);
@@ -525,7 +525,7 @@ export default function LeadsPage() {
   const handleFileDelete = async (fileId: string) => {
     if (!editingLead) return;
     try {
-      await fetch(`/crm/api/leads/${editingLead.id}/files?fileId=${fileId}`, { method: "DELETE" });
+      await fetch(`/api/leads/${editingLead.id}/files?fileId=${fileId}`, { method: "DELETE" });
       await fetchExtras(editingLead.id);
       toast.success("File deleted");
     } catch { toast.error("Failed to delete file"); }
@@ -539,7 +539,7 @@ export default function LeadsPage() {
       const fd = new FormData();
       fd.append("file", importFile);
       fd.append("brandId", activeBrand.id);
-      const res = await fetch("/crm/api/leads/import", { method: "POST", body: fd });
+      const res = await fetch("/api/leads/import", { method: "POST", body: fd });
       if (!res.ok) throw new Error("Import failed");
       const data = await res.json();
       setImportResult({ imported: data.imported, skipped: data.skipped, total: data.total });
@@ -553,7 +553,7 @@ export default function LeadsPage() {
   const handleExport = async () => {
     if (!activeBrand?.id) return;
     try {
-      const res = await fetch(`/crm/api/leads/export?brandId=${activeBrand.id}`);
+      const res = await fetch(`/api/leads/export?brandId=${activeBrand.id}`);
       if (!res.ok) throw new Error("Export failed");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -576,7 +576,7 @@ export default function LeadsPage() {
     }
     setConverting(true);
     try {
-      const res = await fetch(`/crm/api/leads/${editingLead.id}/convert`, { method: "POST" });
+      const res = await fetch(`/api/leads/${editingLead.id}/convert`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to convert");
       toast.success(`Converted to customer: ${data.customerName}`);
@@ -1113,7 +1113,7 @@ export default function LeadsPage() {
               if (!activeBrand?.id) return;
               setDealSubmitting(true);
               try {
-                const res = await fetch("/crm/api/deals", {
+                const res = await fetch("/api/deals", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({

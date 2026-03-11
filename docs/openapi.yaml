@@ -5,9 +5,9 @@ info:
   version: 1.0.0
 
 servers:
-  - url: http://localhost:3000/crm
+  - url: http://localhost:3000
     description: Local
-  - url: https://your-crm-domain.com/crm
+  - url: https://your-crm-domain.com
     description: Production
 
 security:

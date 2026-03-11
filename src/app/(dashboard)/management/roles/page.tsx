@@ -79,7 +79,7 @@ export default function RolesPage() {
 
   useEffect(() => {
     if (!isSuperAdmin) return;
-    fetch("/crm/api/brands")
+    fetch("/api/brands")
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -99,7 +99,7 @@ export default function RolesPage() {
     if (!selectedBrandId) return;
     setLoading(true);
     try {
-      const res = await fetch(`/crm/api/roles?brandId=${selectedBrandId}`);
+      const res = await fetch(`/api/roles?brandId=${selectedBrandId}`);
       if (!res.ok) throw new Error();
       const data = await res.json();
       setRoles(Array.isArray(data) ? data : []);
@@ -163,7 +163,7 @@ export default function RolesPage() {
       const permissions = Array.from(selectedPermissions);
 
       if (editingRole) {
-        const res = await fetch(`/crm/api/roles/${editingRole.id}`, {
+        const res = await fetch(`/api/roles/${editingRole.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name: roleName, description: roleDescription || null, permissions }),
@@ -174,7 +174,7 @@ export default function RolesPage() {
         }
         toast.success("Role updated");
       } else {
-        const res = await fetch("/crm/api/roles", {
+        const res = await fetch("/api/roles", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -204,7 +204,7 @@ export default function RolesPage() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/crm/api/roles/${deleteTarget.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/roles/${deleteTarget.id}`, { method: "DELETE" });
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.error || "Failed to delete role");

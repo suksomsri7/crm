@@ -236,7 +236,7 @@ export default function VouchersPage() {
         page: String(page),
         limit: "20",
       });
-      const res = await fetch(`/crm/api/vouchers?${params}`);
+      const res = await fetch(`/api/vouchers?${params}`);
       if (!res.ok) throw new Error("Failed to fetch vouchers");
       const data = await res.json();
       setVouchers(data.vouchers);
@@ -254,7 +254,7 @@ export default function VouchersPage() {
 
   const fetchVoucherImages = useCallback(async (voucherId: string) => {
     try {
-      const res = await fetch(`/crm/api/vouchers/${voucherId}/files`);
+      const res = await fetch(`/api/vouchers/${voucherId}/files`);
       if (!res.ok) return;
       const data = await res.json();
       setVoucherImages(data.images || []);
@@ -271,7 +271,7 @@ export default function VouchersPage() {
         const fd = new FormData();
         fd.append("file", file);
         fd.append("isCover", String(isCover));
-        const res = await fetch(`/crm/api/vouchers/${editingVoucher.id}/files`, { method: "POST", body: fd });
+        const res = await fetch(`/api/vouchers/${editingVoucher.id}/files`, { method: "POST", body: fd });
         if (!res.ok) throw new Error("Upload failed");
       }
       await fetchVoucherImages(editingVoucher.id);
@@ -289,7 +289,7 @@ export default function VouchersPage() {
   const handleImageDelete = async (fileId: string) => {
     if (!editingVoucher) return;
     try {
-      await fetch(`/crm/api/vouchers/${editingVoucher.id}/files?fileId=${fileId}`, { method: "DELETE" });
+      await fetch(`/api/vouchers/${editingVoucher.id}/files?fileId=${fileId}`, { method: "DELETE" });
       await fetchVoucherImages(editingVoucher.id);
       fetchVouchers();
       toast.success("Image deleted");
@@ -321,7 +321,7 @@ export default function VouchersPage() {
 
     try {
       if (editingVoucher) {
-        const res = await fetch(`/crm/api/vouchers/${editingVoucher.id}`, {
+        const res = await fetch(`/api/vouchers/${editingVoucher.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -332,7 +332,7 @@ export default function VouchersPage() {
         setFormData(EMPTY_FORM);
         setEditingVoucher(null);
       } else {
-        const res = await fetch("/crm/api/vouchers", {
+        const res = await fetch("/api/vouchers", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -376,7 +376,7 @@ export default function VouchersPage() {
     if (!voucherToDelete) return;
     setDeleteSubmitting(true);
     try {
-      const res = await fetch(`/crm/api/vouchers/${voucherToDelete.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/vouchers/${voucherToDelete.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete");
       toast.success("Voucher deleted");
       setDeleteDialogOpen(false);

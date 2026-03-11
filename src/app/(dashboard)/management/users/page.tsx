@@ -140,7 +140,7 @@ export default function UsersPage() {
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch("/crm/api/users");
+      const res = await fetch("/api/users");
       if (!res.ok) {
         if (res.status === 403) {
           router.push("/dashboard");
@@ -161,7 +161,7 @@ export default function UsersPage() {
   const fetchBrandsWithRoles = useCallback(async () => {
     try {
       setBrandsLoading(true);
-      const res = await fetch("/crm/api/brands/with-roles");
+      const res = await fetch("/api/brands/with-roles");
       if (!res.ok) throw new Error("Failed to fetch brands");
       const data = await res.json();
       setBrandsWithRoles(data);
@@ -236,7 +236,7 @@ export default function UsersPage() {
     }
     setCreateSubmitting(true);
     try {
-      const res = await fetch("/crm/api/users", {
+      const res = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -281,7 +281,7 @@ export default function UsersPage() {
       };
       if (editPassword) body.password = editPassword;
 
-      const res = await fetch(`/crm/api/users/${editingUser.id}`, {
+      const res = await fetch(`/api/users/${editingUser.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -308,7 +308,7 @@ export default function UsersPage() {
     }
     setAssigning(true);
     try {
-      const res = await fetch(`/crm/api/users/${manageBrandsUser.id}/brands`, {
+      const res = await fetch(`/api/users/${manageBrandsUser.id}/brands`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ brandId: assignBrandId, roleId: assignRoleId }),
@@ -348,7 +348,7 @@ export default function UsersPage() {
     setRemovingBrandId(brandId);
     try {
       const res = await fetch(
-        `/crm/api/users/${manageBrandsUser.id}/brands?brandId=${encodeURIComponent(brandId)}`,
+        `/api/users/${manageBrandsUser.id}/brands?brandId=${encodeURIComponent(brandId)}`,
         { method: "DELETE" }
       );
       if (!res.ok) throw new Error("Failed to remove from brand");
@@ -372,7 +372,7 @@ export default function UsersPage() {
     setDeleting(true);
     setDeleteTargetId(id);
     try {
-      const res = await fetch(`/crm/api/users/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/users/${id}`, { method: "DELETE" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to delete user");
       toast.success("User deleted");

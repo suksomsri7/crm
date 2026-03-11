@@ -192,7 +192,7 @@ export default function DealsPage() {
       });
       if (stageFilter && stageFilter !== "all") params.set("stage", stageFilter);
       if (search.trim()) params.set("search", search.trim());
-      const res = await fetch(`/crm/api/deals?${params}`);
+      const res = await fetch(`/api/deals?${params}`);
       if (!res.ok) throw new Error("Failed to fetch deals");
       const data: DealsResponse = await res.json();
       setDeals(data.deals);
@@ -222,8 +222,8 @@ export default function DealsPage() {
       try {
         const q = encodeURIComponent(debouncedPersonSearch);
         const [leadsRes, customersRes] = await Promise.all([
-          fetch(`/crm/api/leads?brandId=${activeBrand.id}&search=${q}&limit=8`),
-          fetch(`/crm/api/customers?brandId=${activeBrand.id}&search=${q}&limit=8`),
+          fetch(`/api/leads?brandId=${activeBrand.id}&search=${q}&limit=8`),
+          fetch(`/api/customers?brandId=${activeBrand.id}&search=${q}&limit=8`),
         ]);
         const leadsData = leadsRes.ok ? await leadsRes.json() : { leads: [] };
         const customersData = customersRes.ok ? await customersRes.json() : { customers: [] };
@@ -296,7 +296,7 @@ export default function DealsPage() {
         leadId: selectedPerson?.type === "lead" ? selectedPerson.id : null,
       };
       if (editingDeal) {
-        const res = await fetch(`/crm/api/deals/${editingDeal.id}`, {
+        const res = await fetch(`/api/deals/${editingDeal.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -307,7 +307,7 @@ export default function DealsPage() {
         }
         toast.success("Deal updated");
       } else {
-        const res = await fetch("/crm/api/deals", {
+        const res = await fetch("/api/deals", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -330,7 +330,7 @@ export default function DealsPage() {
   const handleDelete = async () => {
     if (!deleteDeal) return;
     try {
-      const res = await fetch(`/crm/api/deals/${deleteDeal.id}`, {
+      const res = await fetch(`/api/deals/${deleteDeal.id}`, {
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Failed to delete deal");
@@ -359,7 +359,7 @@ export default function DealsPage() {
     if (!deal || deal.stage === stage) return;
     setDeals((prev) => prev.map((d) => d.id === dealId ? { ...d, stage } : d));
     try {
-      const res = await fetch(`/crm/api/deals/${dealId}`, {
+      const res = await fetch(`/api/deals/${dealId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stage }),

@@ -210,7 +210,7 @@ export default function CampaignsPage() {
         page: String(page),
         limit: "20",
       });
-      const res = await fetch(`/crm/api/campaigns?${params}`);
+      const res = await fetch(`/api/campaigns?${params}`);
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || "Failed to fetch campaigns");
@@ -244,7 +244,7 @@ export default function CampaignsPage() {
 
     setFormSubmitting(true);
     try {
-      const res = await fetch("/crm/api/campaigns", {
+      const res = await fetch("/api/campaigns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -281,7 +281,7 @@ export default function CampaignsPage() {
 
     setFormSubmitting(true);
     try {
-      const res = await fetch(`/crm/api/campaigns/${editingCampaign.id}`, {
+      const res = await fetch(`/api/campaigns/${editingCampaign.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -314,7 +314,7 @@ export default function CampaignsPage() {
 
     setDeleteSubmitting(true);
     try {
-      const res = await fetch(`/crm/api/campaigns/${campaignToDelete.id}`, {
+      const res = await fetch(`/api/campaigns/${campaignToDelete.id}`, {
         method: "DELETE",
       });
       if (!res.ok) {

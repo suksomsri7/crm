@@ -2,7 +2,7 @@
 
 คู่มือ API สำหรับการจัดการ Leads และ Customers พร้อมการใช้งานกับ Agent OpenCLaw
 
-> **สำคัญ:** API ทั้งหมดอยู่ภายใต้ path `/crm` เช่น `http://localhost:3000/crm/api/...`
+> Base URL: `{BASE_URL}/api/...`
 
 ---
 
@@ -24,14 +24,14 @@ API ทั้งหมดใช้ **NextAuth Session** (Cookie-based)
 
 ### สำหรับ Agent / การเรียกจากภายนอก
 
-1. **Login ก่อน** - ส่ง POST ไปที่ `/crm/api/auth/callback/credentials` หรือใช้ signIn
+1. **Login ก่อน** - ส่ง POST ไปที่ `/api/auth/callback/credentials` หรือใช้ signIn
 2. **เก็บ Session Cookie** - คุกกี้จะถูกตั้งค่าหลัง login สำเร็จ
 3. **ส่ง Cookie ในทุก Request** - ต้องใช้ `credentials: 'include'` เมื่อเรียก fetch
 
 ### ตัวอย่างการ Login (สำหรับ Agent)
 
 ```http
-POST {BASE_URL}/crm/api/auth/callback/credentials
+POST {BASE_URL}/api/auth/callback/credentials
 Content-Type: application/x-www-form-urlencoded
 
 username=your_username&password=your_password
@@ -46,7 +46,7 @@ username=your_username&password=your_password
 - **Local:** `http://localhost:3000`
 - **Production:** `https://your-crm-domain.com`
 
-API path เริ่มที่ `/crm/api/...` เสมอ
+API path เริ่มที่ `/api/...` เสมอ
 
 ---
 
@@ -57,7 +57,7 @@ API path เริ่มที่ `/crm/api/...` เสมอ
 ก่อนเพิ่ม Lead หรือ Customer ใหม่ ควรเรียก API นี้เพื่อตรวจสอบว่าจะไม่เกิดข้อมูลซ้ำ
 
 ```
-GET /crm/api/entities/check
+GET /api/entities/check
 ```
 
 #### Query Parameters
@@ -97,7 +97,7 @@ GET /crm/api/entities/check
 ### 1. รายการ Leads (List)
 
 ```
-GET /crm/api/leads
+GET /api/leads
 ```
 
 #### Query Parameters
@@ -130,7 +130,7 @@ GET /crm/api/leads
 ### 2. Pipeline (Kanban)
 
 ```
-GET /crm/api/leads/pipeline?brandId=xxx
+GET /api/leads/pipeline?brandId=xxx
 ```
 
 #### Response 200
@@ -152,7 +152,7 @@ GET /crm/api/leads/pipeline?brandId=xxx
 ### 3. สร้าง Lead
 
 ```
-POST /crm/api/leads
+POST /api/leads
 Content-Type: application/json
 ```
 
@@ -202,7 +202,7 @@ Content-Type: application/json
 ### 4. ดู Lead รายละเอียด
 
 ```
-GET /crm/api/leads/{id}
+GET /api/leads/{id}
 ```
 
 #### Response 200
@@ -229,7 +229,7 @@ GET /crm/api/leads/{id}
 ### 5. แก้ไข Lead
 
 ```
-PUT /crm/api/leads/{id}
+PUT /api/leads/{id}
 Content-Type: application/json
 ```
 
@@ -240,7 +240,7 @@ Content-Type: application/json
 ### 6. ลบ Lead
 
 ```
-DELETE /crm/api/leads/{id}
+DELETE /api/leads/{id}
 ```
 
 #### Response 200
@@ -254,7 +254,7 @@ DELETE /crm/api/leads/{id}
 ### 7. แปลง Lead เป็น Customer
 
 ```
-POST /crm/api/leads/{id}/convert
+POST /api/leads/{id}/convert
 ```
 
 แปลง Lead เป็น Customer พร้อมโอนข้อมูลที่เกี่ยวข้อง
@@ -274,9 +274,9 @@ POST /crm/api/leads/{id}/convert
 ### 8. Chat Logs (Lead)
 
 ```
-GET    /crm/api/leads/{id}/chat-logs       # ดึง log
-POST   /crm/api/leads/{id}/chat-logs       # เพิ่ม log
-DELETE /crm/api/leads/{id}/chat-logs?logId=xxx  # ลบ log
+GET    /api/leads/{id}/chat-logs       # ดึง log
+POST   /api/leads/{id}/chat-logs       # เพิ่ม log
+DELETE /api/leads/{id}/chat-logs?logId=xxx  # ลบ log
 ```
 
 #### POST Body (เพิ่ม Chat Log)
@@ -295,10 +295,10 @@ DELETE /crm/api/leads/{id}/chat-logs?logId=xxx  # ลบ log
 ### 9. Extras (Address, Job, Education, etc.)
 
 ```
-GET    /crm/api/leads/{id}/extras
-POST   /crm/api/leads/{id}/extras    # { "type": "addresses", "data": {...} }
-PUT    /crm/api/leads/{id}/extras    # { "type": "addresses", "recordId": "xxx", "data": {...} }
-DELETE /crm/api/leads/{id}/extras?type=addresses&recordId=xxx
+GET    /api/leads/{id}/extras
+POST   /api/leads/{id}/extras    # { "type": "addresses", "data": {...} }
+PUT    /api/leads/{id}/extras    # { "type": "addresses", "recordId": "xxx", "data": {...} }
+DELETE /api/leads/{id}/extras?type=addresses&recordId=xxx
 ```
 
 ---
@@ -308,7 +308,7 @@ DELETE /crm/api/leads/{id}/extras?type=addresses&recordId=xxx
 ### 1. รายการ Customers (List)
 
 ```
-GET /crm/api/customers
+GET /api/customers
 ```
 
 #### Query Parameters
@@ -326,7 +326,7 @@ GET /crm/api/customers
 ### 2. สร้าง Customer
 
 ```
-POST /crm/api/customers
+POST /api/customers
 Content-Type: application/json
 ```
 
@@ -367,7 +367,7 @@ Content-Type: application/json
 ### 3. ดู Customer รายละเอียด
 
 ```
-GET /crm/api/customers/{id}
+GET /api/customers/{id}
 ```
 
 ---
@@ -375,7 +375,7 @@ GET /crm/api/customers/{id}
 ### 4. แก้ไข Customer
 
 ```
-PUT /crm/api/customers/{id}
+PUT /api/customers/{id}
 Content-Type: application/json
 ```
 
@@ -384,7 +384,7 @@ Content-Type: application/json
 ### 5. ลบ Customer
 
 ```
-DELETE /crm/api/customers/{id}
+DELETE /api/customers/{id}
 ```
 
 ---
@@ -392,9 +392,9 @@ DELETE /crm/api/customers/{id}
 ### 6. Chat Logs (Customer)
 
 ```
-GET    /crm/api/customers/{id}/chat-logs
-POST   /crm/api/customers/{id}/chat-logs
-DELETE /crm/api/customers/{id}/chat-logs?logId=xxx
+GET    /api/customers/{id}/chat-logs
+POST   /api/customers/{id}/chat-logs
+DELETE /api/customers/{id}/chat-logs?logId=xxx
 ```
 
 ---
@@ -402,10 +402,10 @@ DELETE /crm/api/customers/{id}/chat-logs?logId=xxx
 ### 7. Extras (Customer)
 
 ```
-GET    /crm/api/customers/{id}/extras
-POST   /crm/api/customers/{id}/extras
-PUT    /crm/api/customers/{id}/extras
-DELETE /crm/api/customers/{id}/extras?type=...&recordId=...
+GET    /api/customers/{id}/extras
+POST   /api/customers/{id}/extras
+PUT    /api/customers/{id}/extras
+DELETE /api/customers/{id}/extras?type=...&recordId=...
 ```
 
 ---
@@ -414,13 +414,13 @@ DELETE /crm/api/customers/{id}/extras?type=...&recordId=...
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| /crm/api/sources | GET | รายการ Sources (active=true) |
-| /crm/api/brands | GET | รายการ Brands (super admin) |
-| /crm/api/deals | GET/POST | จัดการ Deals |
-| /crm/api/leads/import | POST | นำเข้า Leads จาก CSV |
-| /crm/api/leads/export | GET | Export Leads เป็น CSV |
-| /crm/api/customers/import | POST | นำเข้า Customers จาก CSV |
-| /crm/api/customers/export | GET | Export Customers เป็น CSV |
+| /api/sources | GET | รายการ Sources (active=true) |
+| /api/brands | GET | รายการ Brands (super admin) |
+| /api/deals | GET/POST | จัดการ Deals |
+| /api/leads/import | POST | นำเข้า Leads จาก CSV |
+| /api/leads/export | GET | Export Leads เป็น CSV |
+| /api/customers/import | POST | นำเข้า Customers จาก CSV |
+| /api/customers/export | GET | Export Customers เป็น CSV |
 
 ---
 
@@ -441,6 +441,6 @@ DELETE /crm/api/customers/{id}/extras?type=...&recordId=...
 
 ## ขั้นตอนแนะนำสำหรับ Agent ก่อนเพิ่ม Lead/Customer
 
-1. เรียก `GET /crm/api/entities/check?externalId={รหัสลูกค้า}&brandId={brandId}`
+1. เรียก `GET /api/entities/check?externalId={รหัสลูกค้า}&brandId={brandId}`
 2. ถ้า `exists: true` → ไม่ต้องเพิ่ม ให้ใช้ข้อมูลที่มีอยู่หรืออัปเดตแทน
-3. ถ้า `exists: false` → สร้างใหม่ได้ด้วย `POST /crm/api/leads` หรือ `POST /crm/api/customers` พร้อมส่ง `externalId` ใน body
+3. ถ้า `exists: false` → สร้างใหม่ได้ด้วย `POST /api/leads` หรือ `POST /api/customers` พร้อมส่ง `externalId` ใน body

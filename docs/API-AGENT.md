@@ -2,7 +2,7 @@
 
 เอกสารนี้ออกแบบมาให้ Agent อ่านและเรียกใช้ API ได้ถูกต้อง
 
-> **สำคัญ:** API ทั้งหมดอยู่ภายใต้ path `/crm` เช่น `{BASE_URL}/crm/api/...`
+> Base URL: `{BASE_URL}/api/...`
 
 ---
 
@@ -10,24 +10,24 @@
 
 | # | Method | Endpoint | ใช้เมื่อ |
 |---|--------|----------|----------|
-| 1 | GET | /crm/api/entities/check | ตรวจสอบก่อนเพิ่มข้อมูล (กันซ้ำ) |
-| 2 | POST | /crm/api/leads | สร้าง Lead ใหม่ |
-| 3 | PUT | /crm/api/leads/{id} | แก้ไข Lead |
-| 4 | GET | /crm/api/leads | ดึงรายการ Leads |
-| 5 | GET | /crm/api/leads/{id} | ดึงรายละเอียด Lead |
-| 6 | POST | /crm/api/customers | สร้าง Customer ใหม่ |
-| 7 | PUT | /crm/api/customers/{id} | แก้ไข Customer |
-| 8 | GET | /crm/api/customers | ดึงรายการ Customers |
-| 9 | GET | /crm/api/customers/{id} | ดึงรายละเอียด Customer |
-| 10 | GET | /crm/api/sources?active=true | ดึงรายการ Sources |
-| 11 | POST | /crm/api/leads/{id}/chat-logs | บันทึก log การสนทนา |
-| 12 | POST | /crm/api/customers/{id}/chat-logs | บันทึก log การสนทนา |
+| 1 | GET | /api/entities/check | ตรวจสอบก่อนเพิ่มข้อมูล (กันซ้ำ) |
+| 2 | POST | /api/leads | สร้าง Lead ใหม่ |
+| 3 | PUT | /api/leads/{id} | แก้ไข Lead |
+| 4 | GET | /api/leads | ดึงรายการ Leads |
+| 5 | GET | /api/leads/{id} | ดึงรายละเอียด Lead |
+| 6 | POST | /api/customers | สร้าง Customer ใหม่ |
+| 7 | PUT | /api/customers/{id} | แก้ไข Customer |
+| 8 | GET | /api/customers | ดึงรายการ Customers |
+| 9 | GET | /api/customers/{id} | ดึงรายละเอียด Customer |
+| 10 | GET | /api/sources?active=true | ดึงรายการ Sources |
+| 11 | POST | /api/leads/{id}/chat-logs | บันทึก log การสนทนา |
+| 12 | POST | /api/customers/{id}/chat-logs | บันทึก log การสนทนา |
 
 ---
 
 ## ข้อกำหนดก่อนเรียก API
 
-1. **Login ก่อน** - POST ไปที่ `/crm/api/auth/callback/credentials` พร้อม `username` และ `password`
+1. **Login ก่อน** - POST ไปที่ `/api/auth/callback/credentials` พร้อม `username` และ `password`
 2. **เก็บ Cookie** - ใช้ `credentials: 'include'` ในทุก request
 3. **brandId** - ต้องมี (จาก session หรือส่งใน request)
 
@@ -36,10 +36,10 @@
 ## 1. ตรวจสอบข้อมูลซ้ำ (ต้องเรียกก่อนเพิ่ม)
 
 ```http
-GET {BASE}/crm/api/entities/check?externalId={CUSTOMER_ID}&brandId={BRAND_ID}
+GET {BASE}/api/entities/check?externalId={CUSTOMER_ID}&brandId={BRAND_ID}
 ```
 
-**ตัวอย่าง:** `GET /crm/api/entities/check?externalId=CUST-2025-001&brandId=clxxx`
+**ตัวอย่าง:** `GET /api/entities/check?externalId=CUST-2025-001&brandId=clxxx`
 
 **Response:**
 ```json
@@ -62,7 +62,7 @@ GET {BASE}/crm/api/entities/check?externalId={CUSTOMER_ID}&brandId={BRAND_ID}
 ## 2. สร้าง Lead
 
 ```http
-POST {BASE}/crm/api/leads
+POST {BASE}/api/leads
 Content-Type: application/json
 ```
 
@@ -95,7 +95,7 @@ Content-Type: application/json
 ## 3. สร้าง Customer
 
 ```http
-POST {BASE}/crm/api/customers
+POST {BASE}/api/customers
 Content-Type: application/json
 ```
 
@@ -126,7 +126,7 @@ Content-Type: application/json
 ## 4. แก้ไข Lead
 
 ```http
-PUT {BASE}/crm/api/leads/{LEAD_ID}
+PUT {BASE}/api/leads/{LEAD_ID}
 Content-Type: application/json
 ```
 
@@ -137,7 +137,7 @@ Content-Type: application/json
 ## 5. แก้ไข Customer
 
 ```http
-PUT {BASE}/crm/api/customers/{CUSTOMER_ID}
+PUT {BASE}/api/customers/{CUSTOMER_ID}
 Content-Type: application/json
 ```
 
@@ -148,7 +148,7 @@ Content-Type: application/json
 ## 6. บันทึก Chat Log
 
 ```http
-POST {BASE}/crm/api/leads/{LEAD_ID}/chat-logs
+POST {BASE}/api/leads/{LEAD_ID}/chat-logs
 Content-Type: application/json
 ```
 
@@ -169,7 +169,7 @@ Content-Type: application/json
 ## 7. ดึงรายการ Leads
 
 ```http
-GET {BASE}/crm/api/leads?brandId={BRAND_ID}&search={คำค้น}&stage={STAGE}&page=1&limit=50
+GET {BASE}/api/leads?brandId={BRAND_ID}&search={คำค้น}&stage={STAGE}&page=1&limit=50
 ```
 
 ---
@@ -177,7 +177,7 @@ GET {BASE}/crm/api/leads?brandId={BRAND_ID}&search={คำค้น}&stage={STAG
 ## 8. ดึงรายการ Customers
 
 ```http
-GET {BASE}/crm/api/customers?brandId={BRAND_ID}&search={คำค้น}&status={STATUS}&page=1&limit=20
+GET {BASE}/api/customers?brandId={BRAND_ID}&search={คำค้น}&status={STATUS}&page=1&limit=20
 ```
 
 ---
@@ -186,10 +186,10 @@ GET {BASE}/crm/api/customers?brandId={BRAND_ID}&search={คำค้น}&status=
 
 ```
 1. รับข้อมูลลูกค้าใหม่ (มีรหัส เช่น CUST-001)
-2. GET /crm/api/entities/check?externalId=CUST-001&brandId=xxx
-3a. ถ้า exists=false → POST /crm/api/leads หรือ POST /crm/api/customers (ส่ง externalId ด้วย)
-3b. ถ้า exists=true และ inLeads → PUT /crm/api/leads/{lead.id} เพื่ออัปเดต
-3c. ถ้า exists=true และ inCustomers → PUT /crm/api/customers/{customer.id} เพื่ออัปเดต
+2. GET /api/entities/check?externalId=CUST-001&brandId=xxx
+3a. ถ้า exists=false → POST /api/leads หรือ POST /api/customers (ส่ง externalId ด้วย)
+3b. ถ้า exists=true และ inLeads → PUT /api/leads/{lead.id} เพื่ออัปเดต
+3c. ถ้า exists=true และ inCustomers → PUT /api/customers/{customer.id} เพื่ออัปเดต
 ```
 
 ---

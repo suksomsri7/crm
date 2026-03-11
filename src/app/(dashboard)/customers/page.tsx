@@ -350,7 +350,7 @@ export default function CustomersPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams({ brandId, search: debouncedSearch, status: statusFilter === "all" ? "" : statusFilter, page: String(page), limit: "20" });
-      const res = await fetch(`/crm/api/customers?${params}`);
+      const res = await fetch(`/api/customers?${params}`);
       if (!res.ok) throw new Error("Failed to fetch customers");
       const data = await res.json();
       setCustomers(data.customers);
@@ -368,7 +368,7 @@ export default function CustomersPage() {
 
   const fetchSources = useCallback(async () => {
     try {
-      const res = await fetch("/crm/api/sources?active=true");
+      const res = await fetch("/api/sources?active=true");
       if (!res.ok) return;
       const data = await res.json();
       setSourceOptions(data.sources);
@@ -378,7 +378,7 @@ export default function CustomersPage() {
   const fetchExtras = useCallback(async (customerId: string) => {
     setExtrasLoading(true);
     try {
-      const res = await fetch(`/crm/api/customers/${customerId}/extras`);
+      const res = await fetch(`/api/customers/${customerId}/extras`);
       if (!res.ok) throw new Error("Failed to fetch extras");
       const data = await res.json();
       setExtras(data);
@@ -471,7 +471,7 @@ export default function CustomersPage() {
 
     try {
       if (editingCustomer) {
-        const res = await fetch(`/crm/api/customers/${editingCustomer.id}`, {
+        const res = await fetch(`/api/customers/${editingCustomer.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -479,7 +479,7 @@ export default function CustomersPage() {
         if (!res.ok) throw new Error("Failed to update customer");
         toast.success("Customer updated");
       } else {
-        const res = await fetch("/crm/api/customers", {
+        const res = await fetch("/api/customers", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ...payload, brandId: activeBrand.id }),
@@ -500,7 +500,7 @@ export default function CustomersPage() {
     if (!customerToDelete) return;
     setDeleteSubmitting(true);
     try {
-      const res = await fetch(`/crm/api/customers/${customerToDelete.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/customers/${customerToDelete.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete");
       toast.success("Customer deleted");
       setDeleteDialogOpen(false);
@@ -518,13 +518,13 @@ export default function CustomersPage() {
     setExtrasSaving(true);
     try {
       if (recordId) {
-        await fetch(`/crm/api/customers/${editingCustomer.id}/extras`, {
+        await fetch(`/api/customers/${editingCustomer.id}/extras`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ type, recordId, data }),
         });
       } else {
-        await fetch(`/crm/api/customers/${editingCustomer.id}/extras`, {
+        await fetch(`/api/customers/${editingCustomer.id}/extras`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ type, data }),
@@ -542,7 +542,7 @@ export default function CustomersPage() {
   const deleteExtraRecord = async (type: string, recordId: string) => {
     if (!editingCustomer) return;
     try {
-      await fetch(`/crm/api/customers/${editingCustomer.id}/extras?type=${type}&recordId=${recordId}`, { method: "DELETE" });
+      await fetch(`/api/customers/${editingCustomer.id}/extras?type=${type}&recordId=${recordId}`, { method: "DELETE" });
       await fetchExtras(editingCustomer.id);
       toast.success("Deleted");
     } catch {
@@ -557,7 +557,7 @@ export default function CustomersPage() {
       for (const file of Array.from(files)) {
         const fd = new FormData();
         fd.append("file", file);
-        const res = await fetch(`/crm/api/customers/${editingCustomer.id}/files`, { method: "POST", body: fd });
+        const res = await fetch(`/api/customers/${editingCustomer.id}/files`, { method: "POST", body: fd });
         if (!res.ok) throw new Error("Upload failed");
       }
       await fetchExtras(editingCustomer.id);
@@ -574,8 +574,8 @@ export default function CustomersPage() {
     setRewardsLoading(true);
     try {
       const [rewardsRes, vouchersRes] = await Promise.all([
-        fetch(`/crm/api/customers/${customerId}/rewards`),
-        fetch(`/crm/api/customers/${customerId}/vouchers`),
+        fetch(`/api/customers/${customerId}/rewards`),
+        fetch(`/api/customers/${customerId}/vouchers`),
       ]);
       if (rewardsRes.ok) {
         setRewardsData(await rewardsRes.json());
@@ -598,7 +598,7 @@ export default function CustomersPage() {
 
   const fetchCustomerDeals = useCallback(async (customerId: string) => {
     try {
-      const res = await fetch(`/crm/api/customers/${customerId}/deals`);
+      const res = await fetch(`/api/customers/${customerId}/deals`);
       if (res.ok) setCustomerDeals(await res.json());
       else setCustomerDeals([]);
     } catch { setCustomerDeals([]); }
@@ -606,7 +606,7 @@ export default function CustomersPage() {
 
   const fetchCustomerCampaigns = useCallback(async (customerId: string) => {
     try {
-      const res = await fetch(`/crm/api/customers/${customerId}/campaigns`);
+      const res = await fetch(`/api/customers/${customerId}/campaigns`);
       if (res.ok) setCustomerCampaigns(await res.json());
       else setCustomerCampaigns([]);
     } catch { setCustomerCampaigns([]); }
@@ -616,7 +616,7 @@ export default function CustomersPage() {
     if (!editDealId) return;
     setEditDealSaving(true);
     try {
-      const res = await fetch(`/crm/api/deals/${editDealId}`, {
+      const res = await fetch(`/api/deals/${editDealId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -640,7 +640,7 @@ export default function CustomersPage() {
   const fetchAvailableVouchers = useCallback(async () => {
     if (!activeBrand?.id) return;
     try {
-      const res = await fetch(`/crm/api/vouchers?brandId=${activeBrand.id}&status=active&limit=100`);
+      const res = await fetch(`/api/vouchers?brandId=${activeBrand.id}&status=active&limit=100`);
       if (!res.ok) return;
       const data = await res.json();
       setAvailableVouchers(data.vouchers || []);
@@ -651,7 +651,7 @@ export default function CustomersPage() {
     if (!editingCustomer || !pointForm.amount) return;
     setPointSubmitting(true);
     try {
-      const res = await fetch(`/crm/api/customers/${editingCustomer.id}/rewards`, {
+      const res = await fetch(`/api/customers/${editingCustomer.id}/rewards`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type: "point", amount: Number(pointForm.amount), notes: pointForm.notes || null }),
@@ -672,7 +672,7 @@ export default function CustomersPage() {
     setVoucherSubmitting(true);
     try {
       const qty = parseInt(voucherFormQty) || 1;
-      const res = await fetch(`/crm/api/customers/${editingCustomer.id}/vouchers`, {
+      const res = await fetch(`/api/customers/${editingCustomer.id}/vouchers`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ voucherId: voucherFormId, quantity: qty, notes: voucherFormNotes || null }),
@@ -700,7 +700,7 @@ export default function CustomersPage() {
     const newQty = cv.quantity + delta;
     if (newQty < 1) return;
     try {
-      const res = await fetch(`/crm/api/customers/${editingCustomer.id}/vouchers?recordId=${recordId}`, {
+      const res = await fetch(`/api/customers/${editingCustomer.id}/vouchers?recordId=${recordId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ quantity: newQty }),
@@ -716,7 +716,7 @@ export default function CustomersPage() {
   const deleteCustomerVoucher = async (recordId: string) => {
     if (!editingCustomer || !confirm("Remove this voucher from customer?")) return;
     try {
-      const res = await fetch(`/crm/api/customers/${editingCustomer.id}/vouchers?recordId=${recordId}`, { method: "DELETE" });
+      const res = await fetch(`/api/customers/${editingCustomer.id}/vouchers?recordId=${recordId}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete");
       toast.success("Voucher removed");
       await fetchRewards(editingCustomer.id);
@@ -728,7 +728,7 @@ export default function CustomersPage() {
   const handleFileDelete = async (fileId: string) => {
     if (!editingCustomer) return;
     try {
-      await fetch(`/crm/api/customers/${editingCustomer.id}/files?fileId=${fileId}`, { method: "DELETE" });
+      await fetch(`/api/customers/${editingCustomer.id}/files?fileId=${fileId}`, { method: "DELETE" });
       await fetchExtras(editingCustomer.id);
       toast.success("File deleted");
     } catch {
@@ -744,7 +744,7 @@ export default function CustomersPage() {
       const fd = new FormData();
       fd.append("file", importFile);
       fd.append("brandId", activeBrand.id);
-      const res = await fetch("/crm/api/customers/import", { method: "POST", body: fd });
+      const res = await fetch("/api/customers/import", { method: "POST", body: fd });
       if (!res.ok) throw new Error("Import failed");
       const data = await res.json();
       setImportResult({ imported: data.imported, skipped: data.skipped, total: data.total });
@@ -760,7 +760,7 @@ export default function CustomersPage() {
   const handleExport = async () => {
     if (!activeBrand?.id) return;
     try {
-      const res = await fetch(`/crm/api/customers/export?brandId=${activeBrand.id}`);
+      const res = await fetch(`/api/customers/export?brandId=${activeBrand.id}`);
       if (!res.ok) throw new Error("Export failed");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -1550,7 +1550,7 @@ export default function CustomersPage() {
               if (!activeBrand?.id) return;
               setDealSubmitting(true);
               try {
-                const res = await fetch("/crm/api/deals", {
+                const res = await fetch("/api/deals", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({

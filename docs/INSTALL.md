@@ -2,8 +2,6 @@
 
 เอกสารนี้อธิบายวิธีติดตั้งระบบ CRM ทั้งแบบ Vercel (แนะนำ) และ Docker/VPS
 
-> **หมายเหตุ:** แอปทำงานภายใต้ path `/crm` เช่น `https://your-domain.com/crm`
-
 ---
 
 ## วิธีที่ 1: Deploy บน Vercel (แนะนำ)
@@ -52,7 +50,7 @@
 |----------|-----|----------|
 | `DATABASE_URL` | Neon connection string | `postgresql://user:pass@ep-xxx.neon.tech/db?sslmode=require` |
 | `AUTH_SECRET` | สุ่มด้วย `openssl rand -base64 32` | `aBcDeFgH...` |
-| `AUTH_URL` | URL ของ Vercel + /crm | `https://your-project.vercel.app/crm` |
+| `AUTH_URL` | URL ของ Vercel | `https://your-project.vercel.app` |
 | `BUNNY_STORAGE_API_KEY` | Bunny Storage API Key | `xxxxxxxx-xxxx-xxxx...` |
 | `BUNNY_STORAGE_ZONE` | ชื่อ Storage Zone | `crm-files` |
 | `BUNNY_STORAGE_REGION` | Region | `sg` |
@@ -67,16 +65,11 @@
 หลัง deploy สำเร็จ ต้องสร้างตารางและ seed ข้อมูลเริ่มต้น:
 
 ```bash
-# Clone โปรเจกต์ลงเครื่อง (ถ้ายังไม่มี)
 git clone <repo-url> crm && cd crm
 
-# ตั้งค่า DATABASE_URL ชี้ไป Neon
 export DATABASE_URL="postgresql://user:pass@ep-xxx.neon.tech/db?sslmode=require"
 
-# สร้างตาราง
 npx prisma db push
-
-# Seed ข้อมูลเริ่มต้น (superadmin)
 npm run db:seed
 ```
 
@@ -86,14 +79,14 @@ npm run db:seed
 
 1. ใน Vercel → Settings → Domains → เพิ่มโดเมน
 2. ตั้ง DNS Record ตามที่ Vercel แนะนำ
-3. อัปเดต `AUTH_URL` ใน Environment Variables เป็น `https://crm.yourdomain.com/crm`
+3. อัปเดต `AUTH_URL` ใน Environment Variables เป็น `https://crm.yourdomain.com`
 4. Redeploy
 
 ---
 
 ### Login ครั้งแรก
 
-- **URL:** `https://your-project.vercel.app/crm`
+- **URL:** `https://your-project.vercel.app`
 - **Username:** `superadmin`
 - **Password:** `@Superadmin252322`
 
@@ -113,9 +106,7 @@ npm run db:seed
 ```bash
 git clone <repo-url> crm && cd crm
 
-# ต้องเพิ่ม output: "standalone" กลับใน next.config.ts ก่อน build Docker
-# เพิ่ม: output: "standalone" ใน nextConfig
-
+# ต้องเพิ่ม output: "standalone" ใน next.config.ts ก่อน build Docker
 cp .env.example .env
 # แก้ไข .env ตาม environment
 
@@ -123,39 +114,21 @@ docker compose up -d db app
 docker compose --profile init run --rm db-init
 ```
 
-> **หมายเหตุ Docker:** ต้องเพิ่ม `output: "standalone"` กลับเข้า `next.config.ts` ก่อน build Docker image เพราะ Vercel build ไม่ต้องใช้
-
----
-
-## โครงสร้าง URL
-
-| ส่วน | URL |
-|------|-----|
-| หน้า Login | `/crm/login` |
-| หน้า Dashboard | `/crm/dashboard` |
-| API Endpoints | `/crm/api/...` |
-| Auth Callback | `/crm/api/auth/callback/credentials` |
-
 ---
 
 ## Troubleshooting
 
 ### ปัญหา: Login ไม่ได้ / Redirect ผิด
 
-- ตรวจสอบ `AUTH_URL` ต้องลงท้ายด้วย `/crm` และตรงกับ URL ที่เข้า
-- ถ้าใช้ Custom Domain ต้องอัปเดต `AUTH_URL` ใน Vercel Environment Variables แล้ว Redeploy
+- ตรวจสอบ `AUTH_URL` ตรงกับ URL ที่เข้า (รวม https)
+- ถ้าใช้ Custom Domain ต้องอัปเดต `AUTH_URL` แล้ว Redeploy
 
 ### ปัญหา: Upload ไฟล์ไม่ได้
 
 - ตรวจสอบ `BUNNY_STORAGE_API_KEY` ถูกต้อง
 - ตรวจสอบ `BUNNY_STORAGE_ZONE` ตรงกับชื่อ Storage Zone
-- ตรวจสอบ `BUNNY_CDN_URL` ตรงกับ Pull Zone URL
 
 ### ปัญหา: Database connection error
 
 - ตรวจสอบ `DATABASE_URL` ต้องเป็น pooled connection string จาก Neon
 - ต้องมี `?sslmode=require` ต่อท้าย
-
-### ปัญหา: หน้าเว็บ 404
-
-- ต้องเข้าที่ `/crm` ไม่ใช่ `/` (เช่น `https://your-project.vercel.app/crm`)
