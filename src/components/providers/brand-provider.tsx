@@ -35,7 +35,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isSuperAdmin || !user) return;
     let cancelled = false;
-    fetch("/api/brands")
+    fetch("/crm/api/brands")
       .then((res) => res.json())
       .then((data) => {
         if (cancelled || !Array.isArray(data)) return;

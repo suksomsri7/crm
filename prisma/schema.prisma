@@ -127,11 +127,15 @@ model UserBrand {
 model Customer {
   id           String   @id @default(cuid())
   brandId      String
+  externalId   String?  @map("external_id")  // รหัสลูกค้าภายนอก สำหรับตรวจสอบข้อมูลซ้ำ
   assignedTo   String?
   name         String
   titlePrefix  String?
+  titlePrefixTh String?  @map("title_prefix_th")
   firstName    String?
+  firstNameTh  String?   @map("first_name_th")
   lastName     String?
+  lastNameTh   String?   @map("last_name_th")
   nickname     String?
   sex          String?
   email        String?
@@ -171,8 +175,10 @@ model Customer {
   rewards           CustomerReward[]
   customerVouchers  CustomerVoucher[]
   campaignMembers   CampaignMember[]
+  chatLogs          ChatLog[]
 
   @@index([brandId])
+  @@index([brandId, externalId])
   @@index([brandId, assignedTo])
   @@index([brandId, email])
   @@map("customers")
@@ -185,13 +191,17 @@ model Customer {
 model Lead {
   id           String   @id @default(cuid())
   brandId      String
+  externalId   String?  @map("external_id")  // รหัสลูกค้าภายนอก สำหรับตรวจสอบข้อมูลซ้ำ
   customerId   String?
   assignedToId String?
   createdById  String?
   title        String
   titlePrefix  String?
+  titlePrefixTh String?  @map("title_prefix_th")
   firstName    String?
+  firstNameTh  String?   @map("first_name_th")
   lastName     String?
+  lastNameTh   String?   @map("last_name_th")
   nickname     String?
   sex          String?
   phone        String?
@@ -227,8 +237,10 @@ model Lead {
   socials           CustomerSocial[]
   files             CustomerFile[]
   campaignMembers   CampaignMember[]
+  chatLogs          ChatLog[]
 
   @@index([brandId])
+  @@index([brandId, externalId])
   @@index([brandId, stage])
   @@index([brandId, assignedToId])
   @@map("leads")
@@ -724,6 +736,28 @@ model CustomerVoucher {
   @@index([customerId])
   @@index([voucherId])
   @@map("customer_vouchers")
+}
+
+// ============================================================
+// CHAT LOG
+// ============================================================
+
+model ChatLog {
+  id         String   @id @default(cuid())
+  leadId     String?
+  customerId String?
+  channel    String   // LINE, Facebook, Instagram, WhatsApp, Phone, Email, Walk-in, Other
+  senderName String
+  message    String
+  sentAt     DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  lead     Lead?     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, sentAt])
+  @@index([customerId, sentAt])
+  @@map("chat_logs")
 }
 
 // ============================================================

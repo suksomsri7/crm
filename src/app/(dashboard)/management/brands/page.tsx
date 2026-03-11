@@ -71,7 +71,7 @@ export default function BrandsPage() {
   const fetchBrands = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/brands");
+      const res = await fetch("/crm/api/brands");
       if (!res.ok) {
         if (res.status === 403) {
           router.push("/dashboard");
@@ -130,7 +130,7 @@ export default function BrandsPage() {
     setSubmitting(true);
     try {
       if (editingBrand) {
-        const res = await fetch(`/api/brands/${editingBrand.id}`, {
+        const res = await fetch(`/crm/api/brands/${editingBrand.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -144,7 +144,7 @@ export default function BrandsPage() {
         }
         toast.success("Brand updated");
       } else {
-        const res = await fetch("/api/brands", {
+        const res = await fetch("/crm/api/brands", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -171,7 +171,7 @@ export default function BrandsPage() {
     setDeleting(true);
     setDeleteTargetId(id);
     try {
-      const res = await fetch(`/api/brands/${id}`, { method: "DELETE" });
+      const res = await fetch(`/crm/api/brands/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete brand");
       toast.success("Brand deleted");
       fetchBrands();

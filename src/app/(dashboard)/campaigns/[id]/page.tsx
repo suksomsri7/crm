@@ -259,7 +259,7 @@ export default function CampaignDetailPage() {
 
   const fetchCampaign = useCallback(async () => {
     try {
-      const res = await fetch(`/api/campaigns/${id}`);
+      const res = await fetch(`/crm/api/campaigns/${id}`);
       if (!res.ok) throw new Error();
       setCampaign(await res.json());
     } catch {
@@ -270,7 +270,7 @@ export default function CampaignDetailPage() {
 
   const fetchStages = useCallback(async () => {
     try {
-      const res = await fetch(`/api/campaigns/${id}/stages`);
+      const res = await fetch(`/crm/api/campaigns/${id}/stages`);
       if (!res.ok) throw new Error();
       const data = await res.json();
       setStages(data.stages || []);
@@ -279,7 +279,7 @@ export default function CampaignDetailPage() {
 
   const fetchMembers = useCallback(async () => {
     try {
-      const res = await fetch(`/api/campaigns/${id}/members`);
+      const res = await fetch(`/crm/api/campaigns/${id}/members`);
       if (!res.ok) throw new Error();
       const data = await res.json();
       setMembers(data.members || []);
@@ -303,8 +303,8 @@ export default function CampaignDetailPage() {
     (async () => {
       try {
         const [leadsRes, customersRes] = await Promise.all([
-          fetch(`/api/leads?brandId=${activeBrand.id}&search=${encodeURIComponent(debouncedMemberSearch)}&limit=10`),
-          fetch(`/api/customers?brandId=${activeBrand.id}&search=${encodeURIComponent(debouncedMemberSearch)}&limit=10`),
+          fetch(`/crm/api/leads?brandId=${activeBrand.id}&search=${encodeURIComponent(debouncedMemberSearch)}&limit=10`),
+          fetch(`/crm/api/customers?brandId=${activeBrand.id}&search=${encodeURIComponent(debouncedMemberSearch)}&limit=10`),
         ]);
         const leadsData = leadsRes.ok ? await leadsRes.json() : { leads: [] };
         const customersData = customersRes.ok ? await customersRes.json() : { customers: [] };
@@ -349,7 +349,7 @@ export default function CampaignDetailPage() {
       const leadIds = selectedMembers.filter((s) => s.type === "lead").map((s) => s.id);
       const stageId = targetStageId === "__first__" ? (stages[0]?.id || null) : targetStageId === "__none__" ? null : targetStageId;
 
-      const res = await fetch(`/api/campaigns/${id}/members`, {
+      const res = await fetch(`/crm/api/campaigns/${id}/members`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ customerIds, leadIds, stageId }),
@@ -372,7 +372,7 @@ export default function CampaignDetailPage() {
     if (!newStageName.trim()) return;
     setAddingStage(true);
     try {
-      const res = await fetch(`/api/campaigns/${id}/stages`, {
+      const res = await fetch(`/crm/api/campaigns/${id}/stages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newStageName.trim(), color: newStageColor }),
@@ -392,7 +392,7 @@ export default function CampaignDetailPage() {
   const handleDeleteStage = async (stageId: string) => {
     if (!confirm("Delete this stage? Members will be unassigned.")) return;
     try {
-      await fetch(`/api/campaigns/${id}/stages?stageId=${stageId}`, { method: "DELETE" });
+      await fetch(`/crm/api/campaigns/${id}/stages?stageId=${stageId}`, { method: "DELETE" });
       toast.success("Stage deleted");
       await Promise.all([fetchStages(), fetchMembers()]);
     } catch {
@@ -402,7 +402,7 @@ export default function CampaignDetailPage() {
 
   const handleMoveMember = async (memberId: string, newStageId: string | null) => {
     try {
-      await fetch(`/api/campaigns/${id}/members?memberId=${memberId}`, {
+      await fetch(`/crm/api/campaigns/${id}/members?memberId=${memberId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stageId: newStageId }),
@@ -416,7 +416,7 @@ export default function CampaignDetailPage() {
   const handleDeleteMember = async () => {
     if (!memberToDelete) return;
     try {
-      await fetch(`/api/campaigns/${id}/members?memberId=${memberToDelete.id}`, { method: "DELETE" });
+      await fetch(`/crm/api/campaigns/${id}/members?memberId=${memberToDelete.id}`, { method: "DELETE" });
       toast.success("Member removed");
       setDeleteMemberOpen(false);
       setMemberToDelete(null);
@@ -453,7 +453,7 @@ export default function CampaignDetailPage() {
     dragStageId.current = null;
     setDragOverStageId(null);
     try {
-      await fetch(`/api/campaigns/${id}/stages`, {
+      await fetch(`/crm/api/campaigns/${id}/stages`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stages: reordered.map((s) => ({ id: s.id, order: s.order })) }),
@@ -465,7 +465,7 @@ export default function CampaignDetailPage() {
   const handleStageRename = async (stageId: string) => {
     if (!editingStageName.trim()) { setEditingStageId(null); return; }
     try {
-      await fetch(`/api/campaigns/${id}/stages`, {
+      await fetch(`/crm/api/campaigns/${id}/stages`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stages: [{ id: stageId, name: editingStageName.trim(), order: stages.find((s) => s.id === stageId)?.order ?? 0 }] }),
@@ -485,7 +485,7 @@ export default function CampaignDetailPage() {
       fd.append("type", importType);
       const stageId = importStageId === "__first__" ? (stages[0]?.id || "") : importStageId === "__none__" ? "" : importStageId;
       if (stageId) fd.append("stageId", stageId);
-      const res = await fetch(`/api/campaigns/${id}/members/import`, { method: "POST", body: fd });
+      const res = await fetch(`/crm/api/campaigns/${id}/members/import`, { method: "POST", body: fd });
       if (!res.ok) throw new Error();
       const data = await res.json();
       toast.success(`Imported ${data.imported} member(s)${data.skipped ? `, ${data.skipped} skipped` : ""}`);
@@ -501,7 +501,7 @@ export default function CampaignDetailPage() {
     setCardDetailOpen(true);
     setCardLoading(true);
     try {
-      const res = await fetch(`/api/campaigns/${id}/members/${m.id}`);
+      const res = await fetch(`/crm/api/campaigns/${id}/members/${m.id}`);
       if (!res.ok) throw new Error();
       const detail: MemberDetail = await res.json();
       setCardDetail(detail);
@@ -517,7 +517,7 @@ export default function CampaignDetailPage() {
     if (!cardDetail) return;
     setSavingCard(true);
     try {
-      await fetch(`/api/campaigns/${id}/members?memberId=${cardDetail.id}`, {
+      await fetch(`/crm/api/campaigns/${id}/members?memberId=${cardDetail.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -536,7 +536,7 @@ export default function CampaignDetailPage() {
   const addChecklistItem = async () => {
     if (!cardDetail || !newCheckText.trim()) return;
     try {
-      const res = await fetch(`/api/campaigns/${id}/members/${cardDetail.id}/checklists`, {
+      const res = await fetch(`/crm/api/campaigns/${id}/members/${cardDetail.id}/checklists`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: newCheckText.trim() }),
@@ -551,7 +551,7 @@ export default function CampaignDetailPage() {
   const toggleChecklistItem = async (itemId: string, done: boolean) => {
     if (!cardDetail) return;
     try {
-      await fetch(`/api/campaigns/${id}/members/${cardDetail.id}/checklists?itemId=${itemId}`, {
+      await fetch(`/crm/api/campaigns/${id}/members/${cardDetail.id}/checklists?itemId=${itemId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ done }),
@@ -563,7 +563,7 @@ export default function CampaignDetailPage() {
   const deleteChecklistItem = async (itemId: string) => {
     if (!cardDetail) return;
     try {
-      await fetch(`/api/campaigns/${id}/members/${cardDetail.id}/checklists?itemId=${itemId}`, { method: "DELETE" });
+      await fetch(`/crm/api/campaigns/${id}/members/${cardDetail.id}/checklists?itemId=${itemId}`, { method: "DELETE" });
       setCardDetail((d) => d ? { ...d, checklists: d.checklists.filter((c) => c.id !== itemId) } : d);
     } catch { toast.error("Failed to delete"); }
   };
@@ -571,7 +571,7 @@ export default function CampaignDetailPage() {
   const addComment = async () => {
     if (!cardDetail || !commentText.trim()) return;
     try {
-      const res = await fetch(`/api/campaigns/${id}/members/${cardDetail.id}/comments`, {
+      const res = await fetch(`/crm/api/campaigns/${id}/members/${cardDetail.id}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: commentText.trim() }),
@@ -586,7 +586,7 @@ export default function CampaignDetailPage() {
   const deleteComment = async (commentId: string) => {
     if (!cardDetail) return;
     try {
-      await fetch(`/api/campaigns/${id}/members/${cardDetail.id}/comments?commentId=${commentId}`, { method: "DELETE" });
+      await fetch(`/crm/api/campaigns/${id}/members/${cardDetail.id}/comments?commentId=${commentId}`, { method: "DELETE" });
       setCardDetail((d) => d ? { ...d, comments: d.comments.filter((c) => c.id !== commentId) } : d);
     } catch { toast.error("Failed to delete"); }
   };
@@ -596,7 +596,7 @@ export default function CampaignDetailPage() {
     const fd = new FormData();
     fd.append("file", file);
     try {
-      const res = await fetch(`/api/campaigns/${id}/members/${cardDetail.id}/attachments`, { method: "POST", body: fd });
+      const res = await fetch(`/crm/api/campaigns/${id}/members/${cardDetail.id}/attachments`, { method: "POST", body: fd });
       if (!res.ok) throw new Error();
       const att: AttachmentItem = await res.json();
       setCardDetail((d) => d ? { ...d, attachments: [att, ...d.attachments] } : d);
@@ -607,7 +607,7 @@ export default function CampaignDetailPage() {
   const deleteAttachment = async (fileId: string) => {
     if (!cardDetail) return;
     try {
-      await fetch(`/api/campaigns/${id}/members/${cardDetail.id}/attachments?fileId=${fileId}`, { method: "DELETE" });
+      await fetch(`/crm/api/campaigns/${id}/members/${cardDetail.id}/attachments?fileId=${fileId}`, { method: "DELETE" });
       setCardDetail((d) => d ? { ...d, attachments: d.attachments.filter((a) => a.id !== fileId) } : d);
     } catch { toast.error("Failed to delete"); }
   };
@@ -615,7 +615,7 @@ export default function CampaignDetailPage() {
   const deleteCard = async () => {
     if (!cardDetail || !confirm("Delete this card from the campaign?")) return;
     try {
-      await fetch(`/api/campaigns/${id}/members?memberId=${cardDetail.id}`, { method: "DELETE" });
+      await fetch(`/crm/api/campaigns/${id}/members?memberId=${cardDetail.id}`, { method: "DELETE" });
       toast.success("Card deleted");
       setCardDetailOpen(false);
       setCardDetail(null);

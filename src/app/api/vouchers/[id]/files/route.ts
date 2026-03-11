@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import path from "path";
-import { writeFile, mkdir } from "fs/promises";
+import { uploadToBunny, extractPathFromCdnUrl, deleteFromBunny } from "@/lib/bunny-storage";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -31,17 +30,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   if (!file) return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
 
-  const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-  const uploadDir = path.join(process.cwd(), "public", "uploads", "vouchers", id);
-  await mkdir(uploadDir, { recursive: true });
-
+  const buffer = Buffer.from(await file.arrayBuffer());
   const timestamp = Date.now();
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const fileName = `${timestamp}_${safeName}`;
-  const filePath = path.join(uploadDir, fileName);
-  await writeFile(filePath, buffer);
-  const fileUrl = `/uploads/vouchers/${id}/${fileName}`;
+  const filePath = `vouchers/${id}/${timestamp}_${safeName}`;
+
+  const fileUrl = await uploadToBunny(filePath, buffer);
 
   const record = await db.voucherImage.create({
     data: {
@@ -73,6 +67,13 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
   const image = await db.voucherImage.findUnique({ where: { id: fileId } });
   if (!image) return NextResponse.json({ error: "Image not found" }, { status: 404 });
+
+  if (image.fileUrl) {
+    const storagePath = extractPathFromCdnUrl(image.fileUrl);
+    if (storagePath) {
+      try { await deleteFromBunny(storagePath); } catch { /* ignore */ }
+    }
+  }
 
   if (image.isCover) {
     await db.voucher.update({

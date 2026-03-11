@@ -70,7 +70,7 @@ export function ActivityTimeline({
     setLoading(true);
     try {
       const res = await fetch(
-        `/api/activities?brandId=${brandId}&entityType=${entityType}&entityId=${entityId}`
+        `/crm/api/activities?brandId=${brandId}&entityType=${entityType}&entityId=${entityId}`
       );
       if (res.ok) {
         const data = await res.json();
@@ -91,7 +91,7 @@ export function ActivityTimeline({
         email: "Email logged",
         meeting: "Meeting logged",
       };
-      const res = await fetch("/api/activities", {
+      const res = await fetch("/crm/api/activities", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

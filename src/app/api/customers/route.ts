@@ -5,9 +5,13 @@ import { z } from "zod";
 
 const customerSchema = z.object({
   name: z.string().min(1, "Name is required"),
+  externalId: z.string().optional().nullable(),
   titlePrefix: z.string().optional().nullable(),
+  titlePrefixTh: z.string().optional().nullable(),
   firstName: z.string().optional().nullable(),
+  firstNameTh: z.string().optional().nullable(),
   lastName: z.string().optional().nullable(),
+  lastNameTh: z.string().optional().nullable(),
   nickname: z.string().optional().nullable(),
   sex: z.string().optional().nullable(),
   email: z.string().optional().nullable(),

@@ -79,6 +79,7 @@ import { useBrand } from "@/components/providers/brand-provider";
 import { useSession } from "next-auth/react";
 import { format } from "date-fns";
 import { LeadPipelineCard } from "./lead-pipeline-card";
+import { ChatLogSection } from "@/components/chat-log/chat-log-section";
 
 const STAGES = [
   "prospecting",
@@ -105,9 +106,13 @@ interface SourceOption { id: string; name: string; isActive: boolean; }
 interface Lead {
   id: string;
   title: string;
+  externalId: string | null;
   titlePrefix: string | null;
+  titlePrefixTh: string | null;
   firstName: string | null;
+  firstNameTh: string | null;
   lastName: string | null;
+  lastNameTh: string | null;
   nickname: string | null;
   sex: string | null;
   phone: string | null;
@@ -153,8 +158,13 @@ const SEX_OPTIONS = [
 ] as const;
 
 interface LeadForm {
+  customerId: string;
+  customerRef: string;
   source: string | null;
   stage: Stage;
+  titlePrefixTh: string;
+  firstNameTh: string;
+  lastNameTh: string;
   titlePrefix: string | null;
   firstName: string;
   lastName: string;
@@ -174,8 +184,13 @@ interface LeadForm {
 }
 
 const EMPTY_FORM: LeadForm = {
+  customerId: "",
+  customerRef: "",
   source: null,
   stage: "prospecting",
+  titlePrefixTh: "",
+  firstNameTh: "",
+  lastNameTh: "",
   titlePrefix: null,
   firstName: "",
   lastName: "",
@@ -303,7 +318,7 @@ export default function LeadsPage() {
     if (!activeBrand?.id) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/leads/pipeline?brandId=${activeBrand.id}`);
+      const res = await fetch(`/crm/api/leads/pipeline?brandId=${activeBrand.id}`);
       if (!res.ok) throw new Error("Failed to fetch pipeline");
       setPipeline(await res.json());
     } catch { toast.error("Failed to load pipeline"); }
@@ -319,7 +334,7 @@ export default function LeadsPage() {
       const params = new URLSearchParams({ brandId: activeBrand.id, page: String(page), limit: "20" });
       if (debouncedSearch) params.set("search", debouncedSearch);
       if (stageFilter !== "all") params.set("stage", stageFilter);
-      const res = await fetch(`/api/leads?${params}`);
+      const res = await fetch(`/crm/api/leads?${params}`);
       if (!res.ok) throw new Error("Failed to fetch leads");
       const data = await res.json();
       setLeads(data.leads);
@@ -333,7 +348,7 @@ export default function LeadsPage() {
 
   const fetchSources = useCallback(async () => {
     try {
-      const res = await fetch("/api/sources?active=true");
+      const res = await fetch("/crm/api/sources?active=true");
       if (!res.ok) return;
       const data = await res.json();
       setSourceOptions(data.sources);
@@ -343,7 +358,7 @@ export default function LeadsPage() {
   const fetchExtras = useCallback(async (leadId: string) => {
     setExtrasLoading(true);
     try {
-      const res = await fetch(`/api/leads/${leadId}/extras`);
+      const res = await fetch(`/crm/api/leads/${leadId}/extras`);
       if (!res.ok) throw new Error("Failed to fetch extras");
       setExtras(await res.json());
     } catch {
@@ -363,8 +378,13 @@ export default function LeadsPage() {
   const openEditDialog = (lead: Lead) => {
     setEditingLead(lead);
     setFormData({
+      customerId: (lead as { externalId?: string | null }).externalId ?? "",
+      customerRef: "",
       source: lead.source || null,
       stage: lead.stage as Stage,
+      titlePrefixTh: (lead as { titlePrefixTh?: string | null }).titlePrefixTh ?? "",
+      firstNameTh: (lead as { firstNameTh?: string | null }).firstNameTh ?? "",
+      lastNameTh: (lead as { lastNameTh?: string | null }).lastNameTh ?? "",
       titlePrefix: lead.titlePrefix || null,
       firstName: lead.firstName || "",
       lastName: lead.lastName || "",
@@ -394,9 +414,13 @@ export default function LeadsPage() {
     const autoTitle = [formData.firstName.trim(), formData.lastName.trim()].filter(Boolean).join(" ") || "New Lead";
     const payload = {
       title: autoTitle,
+      externalId: formData.customerId?.trim() || null,
       titlePrefix: formData.titlePrefix || null,
+      titlePrefixTh: formData.titlePrefixTh?.trim() || null,
       firstName: formData.firstName.trim() || null,
+      firstNameTh: formData.firstNameTh?.trim() || null,
       lastName: formData.lastName.trim() || null,
+      lastNameTh: formData.lastNameTh?.trim() || null,
       nickname: formData.nickname.trim() || null,
       sex: formData.sex || null,
       email: formData.email.trim() || null,
@@ -416,11 +440,11 @@ export default function LeadsPage() {
 
     try {
       if (editingLead) {
-        const res = await fetch(`/api/leads/${editingLead.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        const res = await fetch(`/crm/api/leads/${editingLead.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         if (!res.ok) throw new Error("Failed to update lead");
         toast.success("Lead updated");
       } else {
-        const res = await fetch("/api/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, brandId: activeBrand.id }) });
+        const res = await fetch("/crm/api/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, brandId: activeBrand.id }) });
         if (!res.ok) throw new Error("Failed to create lead");
         toast.success("Lead created");
       }
@@ -436,7 +460,7 @@ export default function LeadsPage() {
     if (!leadToDelete) return;
     setDeleteSubmitting(true);
     try {
-      const res = await fetch(`/api/leads/${leadToDelete.id}`, { method: "DELETE" });
+      const res = await fetch(`/crm/api/leads/${leadToDelete.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete");
       toast.success("Lead deleted");
       setDeleteDialogOpen(false);
@@ -450,7 +474,7 @@ export default function LeadsPage() {
 
   const handleMoveStage = async (leadId: string, newStage: string) => {
     try {
-      const res = await fetch(`/api/leads/${leadId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stage: newStage }) });
+      const res = await fetch(`/crm/api/leads/${leadId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stage: newStage }) });
       if (!res.ok) throw new Error("Failed to move lead");
       toast.success("Lead moved");
       fetchPipeline();
@@ -463,9 +487,9 @@ export default function LeadsPage() {
     setExtrasSaving(true);
     try {
       if (recordId) {
-        await fetch(`/api/leads/${editingLead.id}/extras`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type, recordId, data }) });
+        await fetch(`/crm/api/leads/${editingLead.id}/extras`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type, recordId, data }) });
       } else {
-        await fetch(`/api/leads/${editingLead.id}/extras`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type, data }) });
+        await fetch(`/crm/api/leads/${editingLead.id}/extras`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type, data }) });
       }
       await fetchExtras(editingLead.id);
       toast.success("Saved");
@@ -476,7 +500,7 @@ export default function LeadsPage() {
   const deleteExtraRecord = async (type: string, recordId: string) => {
     if (!editingLead) return;
     try {
-      await fetch(`/api/leads/${editingLead.id}/extras?type=${type}&recordId=${recordId}`, { method: "DELETE" });
+      await fetch(`/crm/api/leads/${editingLead.id}/extras?type=${type}&recordId=${recordId}`, { method: "DELETE" });
       await fetchExtras(editingLead.id);
       toast.success("Deleted");
     } catch { toast.error("Failed to delete"); }
@@ -489,7 +513,7 @@ export default function LeadsPage() {
       for (const file of Array.from(files)) {
         const fd = new FormData();
         fd.append("file", file);
-        const res = await fetch(`/api/leads/${editingLead.id}/files`, { method: "POST", body: fd });
+        const res = await fetch(`/crm/api/leads/${editingLead.id}/files`, { method: "POST", body: fd });
         if (!res.ok) throw new Error("Upload failed");
       }
       await fetchExtras(editingLead.id);
@@ -501,7 +525,7 @@ export default function LeadsPage() {
   const handleFileDelete = async (fileId: string) => {
     if (!editingLead) return;
     try {
-      await fetch(`/api/leads/${editingLead.id}/files?fileId=${fileId}`, { method: "DELETE" });
+      await fetch(`/crm/api/leads/${editingLead.id}/files?fileId=${fileId}`, { method: "DELETE" });
       await fetchExtras(editingLead.id);
       toast.success("File deleted");
     } catch { toast.error("Failed to delete file"); }
@@ -515,7 +539,7 @@ export default function LeadsPage() {
       const fd = new FormData();
       fd.append("file", importFile);
       fd.append("brandId", activeBrand.id);
-      const res = await fetch("/api/leads/import", { method: "POST", body: fd });
+      const res = await fetch("/crm/api/leads/import", { method: "POST", body: fd });
       if (!res.ok) throw new Error("Import failed");
       const data = await res.json();
       setImportResult({ imported: data.imported, skipped: data.skipped, total: data.total });
@@ -529,7 +553,7 @@ export default function LeadsPage() {
   const handleExport = async () => {
     if (!activeBrand?.id) return;
     try {
-      const res = await fetch(`/api/leads/export?brandId=${activeBrand.id}`);
+      const res = await fetch(`/crm/api/leads/export?brandId=${activeBrand.id}`);
       if (!res.ok) throw new Error("Export failed");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -552,7 +576,7 @@ export default function LeadsPage() {
     }
     setConverting(true);
     try {
-      const res = await fetch(`/api/leads/${editingLead.id}/convert`, { method: "POST" });
+      const res = await fetch(`/crm/api/leads/${editingLead.id}/convert`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to convert");
       toast.success(`Converted to customer: ${data.customerName}`);
@@ -724,7 +748,18 @@ export default function LeadsPage() {
             <DialogTitle>{editingLead ? "Edit Lead" : "Add Lead"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            {/* Section 1: Basic Info */}
+            {/* Row 1: Customer ID / Customer Ref */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Customer ID</Label>
+                <Input value={formData.customerId ?? ""} onChange={(e) => setFormData((f) => ({ ...f, customerId: e.target.value }))} placeholder="Customer ID" />
+              </div>
+              <div className="space-y-2">
+                <Label>Customer Ref</Label>
+                <Input value={formData.customerRef ?? ""} onChange={(e) => setFormData((f) => ({ ...f, customerRef: e.target.value }))} placeholder="Customer Ref" />
+              </div>
+            </div>
+            {/* Row 2: Source / Stage */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Source</Label>
@@ -746,6 +781,22 @@ export default function LeadsPage() {
                 </Select>
               </div>
             </div>
+            {/* Row 3: คำนำหน้า / ชื่อ / นามสกุล (Thai) */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>คำนำหน้า</Label>
+                <Input value={formData.titlePrefixTh ?? ""} onChange={(e) => setFormData((f) => ({ ...f, titlePrefixTh: e.target.value }))} placeholder="คำนำหน้า" />
+              </div>
+              <div className="space-y-2">
+                <Label>ชื่อ</Label>
+                <Input value={formData.firstNameTh ?? ""} onChange={(e) => setFormData((f) => ({ ...f, firstNameTh: e.target.value }))} placeholder="ชื่อ (ภาษาไทย)" />
+              </div>
+              <div className="space-y-2">
+                <Label>นามสกุล</Label>
+                <Input value={formData.lastNameTh ?? ""} onChange={(e) => setFormData((f) => ({ ...f, lastNameTh: e.target.value }))} placeholder="นามสกุล (ภาษาไทย)" />
+              </div>
+            </div>
+            {/* Row 4: Title Prefix / First Name / Last Name (English) */}
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Title Prefix</Label>
@@ -959,6 +1010,14 @@ export default function LeadsPage() {
                         </Button>
                       </CollapsibleContent>
                     </Collapsible>
+
+                    {/* Chat Log */}
+                    <ChatLogSection
+                      entityType="lead"
+                      entityId={editingLead.id}
+                      isOpen={openSections.has("chatLogs")}
+                      onToggle={() => toggleSection("chatLogs")}
+                    />
                   </div>
                 )}
               </>
@@ -1054,7 +1113,7 @@ export default function LeadsPage() {
               if (!activeBrand?.id) return;
               setDealSubmitting(true);
               try {
-                const res = await fetch("/api/deals", {
+                const res = await fetch("/crm/api/deals", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({

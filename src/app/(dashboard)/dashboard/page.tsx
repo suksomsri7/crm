@@ -126,7 +126,7 @@ export default function DashboardPage() {
       setLoading(true);
       const params = new URLSearchParams();
       if (brandId) params.set("brandId", brandId);
-      const res = await fetch(`/api/dashboard?${params.toString()}`);
+      const res = await fetch(`/crm/api/dashboard?${params.toString()}`);
       if (!res.ok) throw new Error();
       setData(await res.json());
     } catch {

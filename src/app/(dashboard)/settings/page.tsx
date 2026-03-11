@@ -34,7 +34,7 @@ export default function SettingsPage() {
 
     setChangingPassword(true);
     try {
-      const res = await fetch(`/api/users/${user.id}`, {
+      const res = await fetch(`/crm/api/users/${user.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password: newPassword }),

@@ -24,12 +24,28 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-crm_secret_2024}@db:5432/crm
       AUTH_SECRET: ${AUTH_SECRET}
-      AUTH_URL: http://localhost:3000
+      AUTH_URL: ${AUTH_URL:-http://localhost:3000/crm}
+      NEXTAUTH_URL: ${AUTH_URL:-http://localhost:3000/crm}
     volumes:
       - ./uploads:/app/public/uploads
     depends_on:
       db:
         condition: service_healthy
+
+  # รันครั้งเดียวหลัง deploy ครั้งแรก เพื่อสร้างตารางและ seed
+  db-init:
+    build:
+      context: .
+      target: builder
+    restart: "no"
+    command: sh -c "npx prisma db push --skip-generate && npm run db:seed"
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-crm_secret_2024}@db:5432/crm
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - init
 
 volumes:
   pgdata:

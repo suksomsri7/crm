@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { writeFile, mkdir, unlink } from "fs/promises";
-import path from "path";
+import { uploadToBunny, extractPathFromCdnUrl, deleteFromBunny } from "@/lib/bunny-storage";
 
 export async function POST(
   req: NextRequest,
@@ -17,20 +16,17 @@ export async function POST(
   if (!file) return NextResponse.json({ error: "File required" }, { status: 400 });
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const dir = path.join(process.cwd(), "public", "uploads", "campaign-members", memberId);
-  await mkdir(dir, { recursive: true });
-
   const ts = Date.now();
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const fileName = `${ts}-${safeName}`;
-  const filePath = path.join(dir, fileName);
-  await writeFile(filePath, buffer);
+  const filePath = `campaign-members/${memberId}/${ts}-${safeName}`;
+
+  const fileUrl = await uploadToBunny(filePath, buffer);
 
   const attachment = await db.campaignAttachment.create({
     data: {
       memberId,
       fileName: file.name,
-      fileUrl: `/uploads/campaign-members/${memberId}/${fileName}`,
+      fileUrl,
       fileSize: buffer.length,
     },
   });
@@ -49,9 +45,12 @@ export async function DELETE(req: NextRequest) {
   const attachment = await db.campaignAttachment.findUnique({ where: { id: fileId } });
   if (!attachment) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  try {
-    await unlink(path.join(process.cwd(), "public", attachment.fileUrl));
-  } catch { /* file may not exist */ }
+  if (attachment.fileUrl) {
+    const storagePath = extractPathFromCdnUrl(attachment.fileUrl);
+    if (storagePath) {
+      try { await deleteFromBunny(storagePath); } catch { /* ignore */ }
+    }
+  }
 
   await db.campaignAttachment.delete({ where: { id: fileId } });
   return NextResponse.json({ success: true });

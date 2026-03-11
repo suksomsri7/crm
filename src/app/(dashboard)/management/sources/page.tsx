@@ -54,7 +54,7 @@ export default function SourcesPage() {
   const fetchSources = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/sources");
+      const res = await fetch("/crm/api/sources");
       if (!res.ok) throw new Error("Failed to fetch");
       const data = await res.json();
       setSources(data.sources);
@@ -89,7 +89,7 @@ export default function SourcesPage() {
     setSubmitting(true);
     try {
       if (editingSource) {
-        const res = await fetch(`/api/sources/${editingSource.id}`, {
+        const res = await fetch(`/crm/api/sources/${editingSource.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(form),
@@ -100,7 +100,7 @@ export default function SourcesPage() {
         }
         toast.success("Source updated");
       } else {
-        const res = await fetch("/api/sources", {
+        const res = await fetch("/crm/api/sources", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(form),
@@ -123,7 +123,7 @@ export default function SourcesPage() {
   const handleDelete = async () => {
     if (!deleteSource) return;
     try {
-      const res = await fetch(`/api/sources/${deleteSource.id}`, {
+      const res = await fetch(`/crm/api/sources/${deleteSource.id}`, {
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Failed to delete");

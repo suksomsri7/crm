@@ -1,31 +1,43 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+const BASE = "/crm";
+
+function redirect(req: NextRequest, path: string) {
+  const url = req.nextUrl.clone();
+  url.pathname = path;
+  return NextResponse.redirect(url);
+}
+
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  const strippedPath = pathname.startsWith(BASE)
+    ? pathname.slice(BASE.length) || "/"
+    : pathname;
+
   const isPublicRoute =
-    pathname === "/login" ||
-    pathname === "/forgot-password" ||
-    pathname.startsWith("/api/auth");
+    strippedPath === "/login" ||
+    strippedPath === "/forgot-password" ||
+    strippedPath.startsWith("/api/auth");
 
   const sessionToken =
     req.cookies.get("authjs.session-token")?.value ||
     req.cookies.get("__Secure-authjs.session-token")?.value;
 
   if (isPublicRoute) {
-    if (sessionToken && (pathname === "/login" || pathname === "/forgot-password")) {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
+    if (sessionToken && (strippedPath === "/login" || strippedPath === "/forgot-password")) {
+      return redirect(req, `${BASE}/dashboard`);
     }
     return NextResponse.next();
   }
 
   if (!sessionToken) {
-    return NextResponse.redirect(new URL("/login", req.url));
+    return redirect(req, `${BASE}/login`);
   }
 
-  if (pathname === "/") {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+  if (strippedPath === "/") {
+    return redirect(req, `${BASE}/dashboard`);
   }
 
   return NextResponse.next();

@@ -5,7 +5,7 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
 
-# ---- Stage 2: Build ----
+# ---- Stage 2: Build (และใช้สำหรับ db-init) ----
 FROM node:20-alpine AS builder
 WORKDIR /app
 

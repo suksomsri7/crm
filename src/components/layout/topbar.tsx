@@ -62,7 +62,7 @@ function NotificationBell() {
 
   const fetchNotifications = useCallback(async () => {
     try {
-      const res = await fetch("/api/notifications");
+      const res = await fetch("/crm/api/notifications");
       if (!res.ok) return;
       const data = await res.json();
       setNotifications(data.notifications ?? []);
@@ -79,7 +79,7 @@ function NotificationBell() {
   }, [fetchNotifications]);
 
   const markAllRead = async () => {
-    await fetch("/api/notifications", {
+    await fetch("/crm/api/notifications", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "markAllRead" }),
@@ -90,7 +90,7 @@ function NotificationBell() {
 
   const handleClick = async (n: Notification) => {
     if (!n.isRead) {
-      await fetch("/api/notifications", {
+      await fetch("/crm/api/notifications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "markRead", id: n.id }),
