@@ -18,19 +18,14 @@ interface LeadPipelineCardProps {
     stage: string;
   };
   stage: string;
+  stageColor?: string | null;
   onEdit: () => void;
   isDragging?: boolean;
 }
 
-function getCardBorderClass(stage: string) {
-  if (stage === "closed_won") return "border-l-2 border-l-green-500";
-  if (stage === "closed_lost") return "border-l-2 border-l-red-500";
-  return "";
-}
-
 export function LeadPipelineCard({
   lead,
-  stage,
+  stageColor,
   onEdit,
   isDragging,
 }: LeadPipelineCardProps) {
@@ -44,10 +39,10 @@ export function LeadPipelineCard({
         e.dataTransfer.effectAllowed = "move";
       }}
       className={cn(
-        "cursor-grab active:cursor-grabbing hover:bg-muted/50 transition-all",
-        getCardBorderClass(stage),
+        "cursor-grab active:cursor-grabbing hover:bg-muted/50 transition-all border-l-2",
         isDragging && "opacity-50 scale-95"
       )}
+      style={stageColor ? { borderLeftColor: stageColor } : undefined}
       onClick={onEdit}
     >
       <CardContent className="p-3">

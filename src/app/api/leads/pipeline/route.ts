@@ -2,7 +2,44 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
-const STAGES = ["prospecting", "qualification", "proposal", "negotiation", "closed_won", "closed_lost"];
+const OLD_STAGE_MAP: Record<string, { name: string; color: string }> = {
+  prospecting: { name: "Prospecting", color: "#3b82f6" },
+  qualification: { name: "Qualification", color: "#8b5cf6" },
+  proposal: { name: "Proposal", color: "#f59e0b" },
+  negotiation: { name: "Negotiation", color: "#ef4444" },
+  closed_won: { name: "Closed Won", color: "#22c55e" },
+  closed_lost: { name: "Closed Lost", color: "#6b7280" },
+};
+
+async function ensureStagesExist(brandId: string) {
+  const existing = await db.leadStage.findMany({ where: { brandId }, orderBy: { order: "asc" } });
+  if (existing.length > 0) return existing;
+
+  const defaults = Object.entries(OLD_STAGE_MAP).map(([key, val], i) => ({
+    brandId,
+    name: val.name,
+    color: val.color,
+    order: i,
+  }));
+
+  await db.leadStage.createMany({ data: defaults });
+  const stages = await db.leadStage.findMany({ where: { brandId }, orderBy: { order: "asc" } });
+
+  const stageIdByOldKey: Record<string, string> = {};
+  for (const stage of stages) {
+    const oldKey = Object.entries(OLD_STAGE_MAP).find(([, v]) => v.name === stage.name)?.[0];
+    if (oldKey) stageIdByOldKey[oldKey] = stage.id;
+  }
+
+  for (const [oldKey, newId] of Object.entries(stageIdByOldKey)) {
+    await db.lead.updateMany({
+      where: { brandId, stage: oldKey },
+      data: { stage: newId },
+    });
+  }
+
+  return stages;
+}
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -18,6 +55,8 @@ export async function GET(req: NextRequest) {
     if (!hasBrand) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const stages = await ensureStagesExist(brandId);
+
   const leads = await db.lead.findMany({
     where: { brandId, status: { not: "converted" } },
     orderBy: { updatedAt: "desc" },
@@ -27,11 +66,12 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  const pipeline = STAGES.map(stage => ({
-    stage,
-    label: stage.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" "),
-    leads: leads.filter(l => l.stage === stage),
-    count: leads.filter(l => l.stage === stage).length,
+  const pipeline = stages.map((stage) => ({
+    stage: stage.id,
+    label: stage.name,
+    color: stage.color,
+    leads: leads.filter((l) => l.stage === stage.id),
+    count: leads.filter((l) => l.stage === stage.id).length,
   }));
 
   return NextResponse.json(pipeline);

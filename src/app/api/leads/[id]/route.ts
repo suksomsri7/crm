@@ -20,7 +20,7 @@ const updateSchema = z.object({
   customerId: z.string().optional().nullable(),
   source: z.string().optional().nullable(),
   status: z.enum(["new", "contacted", "qualified", "unqualified"]).optional(),
-  stage: z.enum(["prospecting", "qualification", "proposal", "negotiation", "closed_won", "closed_lost"]).optional(),
+  stage: z.string().optional(),
   birthDate: z.string().optional().nullable(),
   idCard: z.string().optional().nullable(),
   address: z.string().optional().nullable(),
@@ -90,16 +90,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     },
   });
 
-  // Track stage change
   if (parsed.data.stage && parsed.data.stage !== existing.stage) {
-    const stageLabels: Record<string, string> = {
-      prospecting: "Prospecting",
-      qualification: "Qualification",
-      proposal: "Proposal",
-      negotiation: "Negotiation",
-      closed_won: "Closed Won",
-      closed_lost: "Closed Lost",
-    };
+    const stageRecord = await db.leadStage.findUnique({ where: { id: parsed.data.stage } });
+    const stageLabel = stageRecord?.name || parsed.data.stage;
     await db.activity.create({
       data: {
         brandId: lead.brandId,
@@ -108,7 +101,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         entityType: "lead",
         entityId: lead.id,
         type: "status_change",
-        title: `Lead moved to ${stageLabels[parsed.data.stage] || parsed.data.stage}`,
+        title: `Lead moved to ${stageLabel}`,
         metadata: { from: existing.stage, to: parsed.data.stage },
       },
     });

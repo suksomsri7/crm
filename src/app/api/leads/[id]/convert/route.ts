@@ -106,12 +106,15 @@ export async function POST(
         data: { customerId: customer.id },
       });
 
-      // Update lead: link to customer and mark as converted
+      const closedWonStage = await tx.leadStage.findFirst({
+        where: { brandId: lead.brandId, name: { contains: "Closed Won", mode: "insensitive" } },
+      });
+
       await tx.lead.update({
         where: { id },
         data: {
           customerId: customer.id,
-          stage: "closed_won",
+          stage: closedWonStage?.id || lead.stage,
           status: "converted",
         },
       });

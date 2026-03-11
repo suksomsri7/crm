@@ -16,10 +16,13 @@ export async function GET(req: NextRequest) {
     if (!hasBrand) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const leads = await db.lead.findMany({
-    where: { brandId },
-    orderBy: { createdAt: "desc" },
-  });
+  const [leads, stages] = await Promise.all([
+    db.lead.findMany({ where: { brandId }, orderBy: { createdAt: "desc" } }),
+    db.leadStage.findMany({ where: { brandId } }),
+  ]);
+
+  const stageNames: Record<string, string> = {};
+  for (const s of stages) stageNames[s.id] = s.name;
 
   const headers = ["firstName", "lastName", "email", "phone", "source", "stage", "interest", "notes", "createdAt"];
   const csv = [
@@ -31,7 +34,7 @@ export async function GET(req: NextRequest) {
         l.email || "",
         l.phone || "",
         l.source || "",
-        l.stage,
+        stageNames[l.stage] || l.stage,
         l.interest || "",
         (l.notes || "").replace(/,/g, ";").replace(/\n/g, " "),
         l.createdAt.toISOString(),

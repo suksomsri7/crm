@@ -56,6 +56,7 @@ model Brand {
   roles       Role[]
   customers   Customer[]
   leads       Lead[]
+  leadStages  LeadStage[]
   deals       Deal[]
   campaigns   Campaign[]
   tickets     Ticket[]
@@ -187,6 +188,20 @@ model Customer {
 // ============================================================
 // SALES MANAGEMENT
 // ============================================================
+
+model LeadStage {
+  id        String   @id @default(cuid())
+  brandId   String
+  name      String
+  color     String?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@index([brandId])
+  @@map("lead_stages")
+}
 
 model Lead {
   id           String   @id @default(cuid())

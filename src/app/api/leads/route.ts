@@ -20,7 +20,7 @@ const leadSchema = z.object({
   customerId: z.string().optional().nullable(),
   source: z.string().optional().nullable(),
   status: z.enum(["new", "contacted", "qualified", "unqualified"]).optional().default("new"),
-  stage: z.enum(["prospecting", "qualification", "proposal", "negotiation", "closed_won", "closed_lost"]).optional().default("prospecting"),
+  stage: z.string().optional(),
   birthDate: z.string().optional().nullable(),
   idCard: z.string().optional().nullable(),
   address: z.string().optional().nullable(),
@@ -98,12 +98,19 @@ export async function POST(req: NextRequest) {
   const parsed = leadSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
+  let stageValue = parsed.data.stage;
+  if (!stageValue) {
+    const defaultStage = await db.leadStage.findFirst({ where: { brandId }, orderBy: { order: "asc" } });
+    stageValue = defaultStage?.id || "prospecting";
+  }
+
   const lead = await db.lead.create({
     data: {
       brandId,
       createdById: user.id,
       assignedToId: parsed.data.assignedToId || user.id,
       ...parsed.data,
+      stage: stageValue,
     },
     include: {
       customer: { select: { id: true, name: true } },

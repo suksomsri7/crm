@@ -35,7 +35,10 @@ export async function POST(req: NextRequest) {
   const interestIdx = headers.indexOf("interest");
   const notesIdx = headers.indexOf("notes");
 
-  const validStages = ["prospecting", "qualification", "proposal", "negotiation", "closed_won", "closed_lost"];
+  const brandStages = await db.leadStage.findMany({ where: { brandId }, orderBy: { order: "asc" } });
+  const stageNameToId: Record<string, string> = {};
+  for (const s of brandStages) stageNameToId[s.name.toLowerCase()] = s.id;
+  const defaultStageId = brandStages[0]?.id || "";
 
   let imported = 0;
   let skipped = 0;
@@ -51,7 +54,8 @@ export async function POST(req: NextRequest) {
       continue;
     }
 
-    const rawStage = stageIdx >= 0 ? cols[stageIdx]?.toLowerCase() : "";
+    const rawStage = stageIdx >= 0 ? cols[stageIdx]?.toLowerCase().trim() : "";
+    const resolvedStageId = stageNameToId[rawStage] || defaultStageId;
 
     try {
       await db.lead.create({
@@ -65,7 +69,7 @@ export async function POST(req: NextRequest) {
           email: emailIdx >= 0 ? cols[emailIdx] || null : null,
           phone: phoneIdx >= 0 ? cols[phoneIdx] || null : null,
           source: sourceIdx >= 0 ? cols[sourceIdx] || null : null,
-          stage: validStages.includes(rawStage) ? rawStage : "prospecting",
+          stage: resolvedStageId,
           status: "new",
           interest: interestIdx >= 0 ? cols[interestIdx] || null : null,
           notes: notesIdx >= 0 ? cols[notesIdx] || null : null,

@@ -72,6 +72,8 @@ import {
   LayoutGrid,
   List,
   UserCheck,
+  Settings2,
+  GripVertical,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -81,25 +83,12 @@ import { format } from "date-fns";
 import { LeadPipelineCard } from "./lead-pipeline-card";
 import { ChatLogSection } from "@/components/chat-log/chat-log-section";
 
-const STAGES = [
-  "prospecting",
-  "qualification",
-  "proposal",
-  "negotiation",
-  "closed_won",
-  "closed_lost",
-] as const;
-
-const STAGE_LABELS: Record<string, string> = {
-  prospecting: "Prospecting",
-  qualification: "Qualification",
-  proposal: "Proposal",
-  negotiation: "Negotiation",
-  closed_won: "Closed Won",
-  closed_lost: "Closed Lost",
-};
-
-type Stage = (typeof STAGES)[number];
+interface LeadStageConfig {
+  id: string;
+  name: string;
+  color: string | null;
+  order: number;
+}
 
 interface SourceOption { id: string; name: string; isActive: boolean; }
 
@@ -138,6 +127,7 @@ interface Lead {
 interface PipelineColumn {
   stage: string;
   label: string;
+  color?: string | null;
   leads: Lead[];
   count: number;
 }
@@ -161,7 +151,7 @@ interface LeadForm {
   customerId: string;
   customerRef: string;
   source: string | null;
-  stage: Stage;
+  stage: string;
   titlePrefixTh: string;
   firstNameTh: string;
   lastNameTh: string;
@@ -187,7 +177,7 @@ const EMPTY_FORM: LeadForm = {
   customerId: "",
   customerRef: "",
   source: null,
-  stage: "prospecting",
+  stage: "",
   titlePrefixTh: "",
   firstNameTh: "",
   lastNameTh: "",
@@ -241,15 +231,7 @@ const EMPTY_SOCIAL: SocialRecord = { platform: "", handle: "", url: "", notes: "
 const SOCIAL_PLATFORMS = ["LINE", "Facebook", "Instagram", "WhatsApp", "WeChat", "Telegram", "Twitter/X", "TikTok", "Other"] as const;
 const EMPTY_EXTRAS: ExtrasData = { addresses: [], jobs: [], education: [], emergencyContacts: [], medical: [], diving: [], socials: [], files: [] };
 
-const STAGE_FILTER_OPTIONS = [
-  { value: "all", label: "All Stages" },
-  { value: "prospecting", label: "Prospecting" },
-  { value: "qualification", label: "Qualification" },
-  { value: "proposal", label: "Proposal" },
-  { value: "negotiation", label: "Negotiation" },
-  { value: "closed_won", label: "Closed Won" },
-  { value: "closed_lost", label: "Closed Lost" },
-] as const;
+// Stage filter options are now built dynamically from LeadStage records
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -262,7 +244,7 @@ function useDebounce<T>(value: T, delay: number): T {
 
 export default function LeadsPage() {
   const { status: sessionStatus } = useSession();
-  const { activeBrand } = useBrand();
+  const { activeBrand, isSuperAdmin } = useBrand();
 
   const [viewMode, setViewMode] = useState<"pipeline" | "list">("pipeline");
   const [pipeline, setPipeline] = useState<PipelineColumn[]>([]);
@@ -306,6 +288,18 @@ export default function LeadsPage() {
   const [dragOverStage, setDragOverStage] = useState<string | null>(null);
   const [draggingLeadId, setDraggingLeadId] = useState<string | null>(null);
 
+  const [stageConfigs, setStageConfigs] = useState<LeadStageConfig[]>([]);
+  const [stageManageOpen, setStageManageOpen] = useState(false);
+  const [stageEdits, setStageEdits] = useState<LeadStageConfig[]>([]);
+  const [stageNewName, setStageNewName] = useState("");
+  const [stageNewColor, setStageNewColor] = useState("#6b7280");
+  const [stageSaving, setStageSaving] = useState(false);
+  const [dragOverColIdx, setDragOverColIdx] = useState<number | null>(null);
+  const [draggingColIdx, setDraggingColIdx] = useState<number | null>(null);
+
+  const stageLabels: Record<string, string> = {};
+  for (const s of stageConfigs) stageLabels[s.id] = s.name;
+
   const toggleSection = (section: string) => {
     setOpenSections((prev) => {
       const next = new Set(prev);
@@ -313,6 +307,16 @@ export default function LeadsPage() {
       return next;
     });
   };
+
+  const fetchStages = useCallback(async () => {
+    if (!activeBrand?.id) return;
+    try {
+      const res = await fetch(`/api/lead-stages?brandId=${activeBrand.id}`);
+      if (!res.ok) throw new Error("Failed to fetch stages");
+      const data: LeadStageConfig[] = await res.json();
+      setStageConfigs(data);
+    } catch { toast.error("Failed to load stages"); }
+  }, [activeBrand?.id]);
 
   const fetchPipeline = useCallback(async () => {
     if (!activeBrand?.id) return;
@@ -343,7 +347,7 @@ export default function LeadsPage() {
     finally { setListLoading(false); }
   }, [activeBrand?.id, page, debouncedSearch, stageFilter]);
 
-  useEffect(() => { if (activeBrand?.id) fetchPipeline(); }, [activeBrand?.id, fetchPipeline]);
+  useEffect(() => { if (activeBrand?.id) { fetchStages(); fetchPipeline(); } }, [activeBrand?.id, fetchStages, fetchPipeline]);
   useEffect(() => { if (activeBrand?.id && viewMode === "list") fetchLeads(); }, [activeBrand?.id, viewMode, fetchLeads, page]);
 
   const fetchSources = useCallback(async () => {
@@ -368,7 +372,7 @@ export default function LeadsPage() {
 
   const openCreateDialog = () => {
     setEditingLead(null);
-    setFormData(EMPTY_FORM);
+    setFormData({ ...EMPTY_FORM, stage: stageConfigs[0]?.id || "" });
     setExtras(EMPTY_EXTRAS);
     setOpenSections(new Set());
     fetchSources();
@@ -381,7 +385,7 @@ export default function LeadsPage() {
       customerId: (lead as { externalId?: string | null }).externalId ?? "",
       customerRef: "",
       source: lead.source || null,
-      stage: lead.stage as Stage,
+      stage: lead.stage,
       titlePrefixTh: (lead as { titlePrefixTh?: string | null }).titlePrefixTh ?? "",
       firstNameTh: (lead as { firstNameTh?: string | null }).firstNameTh ?? "",
       lastNameTh: (lead as { lastNameTh?: string | null }).lastNameTh ?? "",
@@ -568,6 +572,82 @@ export default function LeadsPage() {
     }
   };
 
+  const openStageManage = () => {
+    setStageEdits(stageConfigs.map((s) => ({ ...s })));
+    setStageNewName("");
+    setStageNewColor("#6b7280");
+    setStageManageOpen(true);
+  };
+
+  const handleAddStage = async () => {
+    if (!stageNewName.trim() || !activeBrand?.id) return;
+    setStageSaving(true);
+    try {
+      const res = await fetch("/api/lead-stages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brandId: activeBrand.id, name: stageNewName.trim(), color: stageNewColor }),
+      });
+      if (!res.ok) throw new Error("Failed to add stage");
+      setStageNewName("");
+      setStageNewColor("#6b7280");
+      await fetchStages();
+      await fetchPipeline();
+      const freshStages = await fetch(`/api/lead-stages?brandId=${activeBrand.id}`).then((r) => r.json());
+      setStageEdits(freshStages);
+      toast.success("Stage added");
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to add stage"); }
+    finally { setStageSaving(false); }
+  };
+
+  const handleDeleteStage = async (stageId: string) => {
+    setStageSaving(true);
+    try {
+      const res = await fetch(`/api/lead-stages?id=${stageId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to delete stage");
+      }
+      await fetchStages();
+      await fetchPipeline();
+      setStageEdits((prev) => prev.filter((s) => s.id !== stageId));
+      toast.success("Stage deleted");
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to delete stage"); }
+    finally { setStageSaving(false); }
+  };
+
+  const handleSaveStages = async () => {
+    setStageSaving(true);
+    try {
+      const res = await fetch("/api/lead-stages", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stages: stageEdits.map((s, i) => ({ id: s.id, name: s.name, color: s.color, order: i })) }),
+      });
+      if (!res.ok) throw new Error("Failed to save stages");
+      await fetchStages();
+      await fetchPipeline();
+      setStageManageOpen(false);
+      toast.success("Stages saved");
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to save stages"); }
+    finally { setStageSaving(false); }
+  };
+
+  const handleColumnDragStart = (idx: number) => { setDraggingColIdx(idx); };
+  const handleColumnDragOver = (e: React.DragEvent, idx: number) => { e.preventDefault(); setDragOverColIdx(idx); };
+  const handleColumnDragEnd = () => { setDraggingColIdx(null); setDragOverColIdx(null); };
+  const handleColumnDrop = (dropIdx: number) => {
+    if (draggingColIdx === null || draggingColIdx === dropIdx) { setDraggingColIdx(null); setDragOverColIdx(null); return; }
+    setStageEdits((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(draggingColIdx, 1);
+      next.splice(dropIdx, 0, moved);
+      return next;
+    });
+    setDraggingColIdx(null);
+    setDragOverColIdx(null);
+  };
+
   const convertToCustomer = async () => {
     if (!editingLead) return;
     if (editingLead.customerId) {
@@ -623,8 +703,14 @@ export default function LeadsPage() {
             </div>
             <Select value={stageFilter} onValueChange={setStageFilter}>
               <SelectTrigger className="w-[160px]"><Filter className="size-4 mr-1.5" /><SelectValue placeholder="Stage" /></SelectTrigger>
-              <SelectContent>{STAGE_FILTER_OPTIONS.map((opt) => (<SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>))}</SelectContent>
+              <SelectContent>
+                <SelectItem value="all">All Stages</SelectItem>
+                {stageConfigs.map((s) => (<SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>))}
+              </SelectContent>
             </Select>
+            {isSuperAdmin && (
+              <Button variant="outline" size="sm" onClick={openStageManage}><Settings2 className="size-4" />Manage Stages</Button>
+            )}
             <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}><Upload className="size-4" />Import CSV</Button>
             <Button variant="outline" size="sm" onClick={handleExport}><Download className="size-4" />Export CSV</Button>
             <Button size="sm" onClick={openCreateDialog}><Plus className="size-4" />Add Lead</Button>
@@ -660,13 +746,16 @@ export default function LeadsPage() {
                     }}
                   >
                     <div className="mb-3 flex items-center justify-between">
-                      <span className="font-medium text-sm">{col.label}</span>
+                      <span className="flex items-center gap-1.5 font-medium text-sm">
+                        {col.color && <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: col.color }} />}
+                        {col.label}
+                      </span>
                       <span className="text-xs text-muted-foreground">{filteredLeads.length}</span>
                     </div>
                     <div className="flex flex-col gap-2 flex-1 overflow-y-auto max-h-[calc(100vh-280px)]" onDragOver={(e) => e.preventDefault()}>
                       {filteredLeads.map((leadItem) => (
                         <div key={leadItem.id} onDragStart={() => setDraggingLeadId(leadItem.id)} onDragEnd={() => { setDraggingLeadId(null); setDragOverStage(null); }}>
-                          <LeadPipelineCard lead={leadItem} stage={col.stage} onEdit={() => openEditDialog(leadItem)} isDragging={draggingLeadId === leadItem.id} />
+                          <LeadPipelineCard lead={leadItem} stage={col.stage} stageColor={col.color} onEdit={() => openEditDialog(leadItem)} isDragging={draggingLeadId === leadItem.id} />
                         </div>
                       ))}
                     </div>
@@ -708,7 +797,7 @@ export default function LeadsPage() {
                           <TableCell className="text-muted-foreground">{lead.phone || "—"}</TableCell>
                           <TableCell className="text-muted-foreground">{lead.email || "—"}</TableCell>
                           <TableCell>{lead.source ? <Badge variant="outline" className="text-xs">{lead.source}</Badge> : "—"}</TableCell>
-                          <TableCell><Badge variant={lead.stage === "closed_won" ? "default" : lead.stage === "closed_lost" ? "destructive" : "secondary"} className="text-xs">{STAGE_LABELS[lead.stage] ?? lead.stage}</Badge></TableCell>
+                          <TableCell><Badge variant="secondary" className="text-xs">{stageLabels[lead.stage] ?? lead.stage}</Badge></TableCell>
                           <TableCell className="text-muted-foreground text-sm">{lead.interest || "—"}</TableCell>
                           <TableCell className="text-muted-foreground text-sm">{format(new Date(lead.createdAt), "MMM d, yyyy")}</TableCell>
                           <TableCell>
@@ -773,10 +862,10 @@ export default function LeadsPage() {
               </div>
               <div className="space-y-2">
                 <Label>Stage</Label>
-                <Select value={formData.stage} onValueChange={(v) => setFormData((f) => ({ ...f, stage: v as Stage }))}>
+                <Select value={formData.stage} onValueChange={(v) => setFormData((f) => ({ ...f, stage: v }))}>
                   <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {STAGES.map((s) => (<SelectItem key={s} value={s}>{STAGE_LABELS[s]}</SelectItem>))}
+                    {stageConfigs.map((s) => (<SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>))}
                   </SelectContent>
                 </Select>
               </div>
@@ -1151,6 +1240,83 @@ export default function LeadsPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => { setImportFile(null); setImportResult(null); setImportDialogOpen(false); }}>{importResult ? "Close" : "Cancel"}</Button>
             {!importResult && <Button onClick={handleImport} disabled={!importFile || importSubmitting}>{importSubmitting && <Loader2 className="size-4 animate-spin" />}Upload</Button>}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Stage Management Dialog (Super Admin only) */}
+      <Dialog open={stageManageOpen} onOpenChange={setStageManageOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Manage Lead Stages</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">Add, edit, delete or reorder pipeline stages. Drag rows to reorder.</p>
+          <div className="space-y-3 py-2">
+            {stageEdits.map((stage, idx) => (
+              <div
+                key={stage.id}
+                draggable
+                onDragStart={() => handleColumnDragStart(idx)}
+                onDragOver={(e) => handleColumnDragOver(e, idx)}
+                onDragEnd={handleColumnDragEnd}
+                onDrop={() => handleColumnDrop(idx)}
+                className={cn(
+                  "flex items-center gap-2 rounded-md border p-2 transition-colors bg-background",
+                  draggingColIdx === idx && "opacity-50",
+                  dragOverColIdx === idx && draggingColIdx !== idx && "ring-2 ring-primary/30"
+                )}
+              >
+                <GripVertical className="size-4 text-muted-foreground cursor-grab shrink-0" />
+                <input
+                  type="color"
+                  value={stage.color || "#6b7280"}
+                  onChange={(e) => setStageEdits((prev) => prev.map((s, i) => i === idx ? { ...s, color: e.target.value } : s))}
+                  className="size-7 rounded border cursor-pointer shrink-0"
+                />
+                <Input
+                  value={stage.name}
+                  onChange={(e) => setStageEdits((prev) => prev.map((s, i) => i === idx ? { ...s, name: e.target.value } : s))}
+                  className="flex-1 h-8"
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 text-destructive hover:text-destructive shrink-0"
+                  onClick={() => handleDeleteStage(stage.id)}
+                  disabled={stageSaving}
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </div>
+            ))}
+
+            <Separator />
+
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={stageNewColor}
+                onChange={(e) => setStageNewColor(e.target.value)}
+                className="size-7 rounded border cursor-pointer shrink-0"
+              />
+              <Input
+                value={stageNewName}
+                onChange={(e) => setStageNewName(e.target.value)}
+                placeholder="New stage name..."
+                className="flex-1 h-8"
+                onKeyDown={(e) => { if (e.key === "Enter") handleAddStage(); }}
+              />
+              <Button size="sm" variant="outline" onClick={handleAddStage} disabled={!stageNewName.trim() || stageSaving}>
+                <Plus className="size-3.5" /> Add
+              </Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStageManageOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveStages} disabled={stageSaving}>
+              {stageSaving && <Loader2 className="size-4 animate-spin" />}
+              Save Order & Names
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
