@@ -314,9 +314,6 @@ export default function LeadsPage() {
       const res = await fetch(`/api/lead-stages?brandId=${activeBrand.id}`);
       if (!res.ok) throw new Error("Failed to fetch stages");
       const data: LeadStageConfig[] = await res.json();
-      // #region agent log
-      fetch('http://127.0.0.1:7682/ingest/b70e1de7-b1ca-437c-8f3d-79f7aafa5e30',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ceba26'},body:JSON.stringify({sessionId:'ceba26',location:'leads/page.tsx:fetchStages',message:'stages loaded',data:{count:data.length,ids:data.map(s=>s.id),names:data.map(s=>s.name)},timestamp:Date.now(),hypothesisId:'H-B'})}).catch(()=>{});
-      // #endregion
       setStageConfigs(data);
     } catch { toast.error("Failed to load stages"); }
   }, [activeBrand?.id]);
@@ -583,9 +580,6 @@ export default function LeadsPage() {
   };
 
   const handleAddStage = async () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7682/ingest/b70e1de7-b1ca-437c-8f3d-79f7aafa5e30',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ceba26'},body:JSON.stringify({sessionId:'ceba26',location:'leads/page.tsx:handleAddStage',message:'handleAddStage called',data:{stageNewName,stageNewColor,brandId:activeBrand?.id,stageSaving},timestamp:Date.now(),hypothesisId:'H-C'})}).catch(()=>{});
-    // #endregion
     if (!stageNewName.trim() || !activeBrand?.id) return;
     setStageSaving(true);
     try {
@@ -594,11 +588,10 @@ export default function LeadsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ brandId: activeBrand.id, name: stageNewName.trim(), color: stageNewColor }),
       });
-      // #region agent log
-      const resBody = await res.clone().text();
-      fetch('http://127.0.0.1:7682/ingest/b70e1de7-b1ca-437c-8f3d-79f7aafa5e30',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ceba26'},body:JSON.stringify({sessionId:'ceba26',location:'leads/page.tsx:handleAddStage:response',message:'POST /api/lead-stages response',data:{status:res.status,ok:res.ok,body:resBody.substring(0,500)},timestamp:Date.now(),hypothesisId:'H-A'})}).catch(()=>{});
-      // #endregion
-      if (!res.ok) throw new Error("Failed to add stage");
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Failed to add stage (${res.status})`);
+      }
       setStageNewName("");
       setStageNewColor("#6b7280");
       await fetchStages();
@@ -607,9 +600,6 @@ export default function LeadsPage() {
       setStageEdits(freshStages);
       toast.success("Stage added");
     } catch (err) {
-      // #region agent log
-      fetch('http://127.0.0.1:7682/ingest/b70e1de7-b1ca-437c-8f3d-79f7aafa5e30',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ceba26'},body:JSON.stringify({sessionId:'ceba26',location:'leads/page.tsx:handleAddStage:error',message:'handleAddStage error caught',data:{error:err instanceof Error ? err.message : String(err)},timestamp:Date.now(),hypothesisId:'H-D'})}).catch(()=>{});
-      // #endregion
       toast.error(err instanceof Error ? err.message : "Failed to add stage");
     }
     finally { setStageSaving(false); }
@@ -632,30 +622,22 @@ export default function LeadsPage() {
   };
 
   const handleSaveStages = async () => {
-    const payload = { stages: stageEdits.map((s, i) => ({ id: s.id, name: s.name, color: s.color, order: i })) };
-    // #region agent log
-    fetch('http://127.0.0.1:7682/ingest/b70e1de7-b1ca-437c-8f3d-79f7aafa5e30',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ceba26'},body:JSON.stringify({sessionId:'ceba26',location:'leads/page.tsx:handleSaveStages',message:'handleSaveStages called',data:{stageCount:stageEdits.length,stageIds:stageEdits.map(s=>s.id),payload},timestamp:Date.now(),hypothesisId:'H-B'})}).catch(()=>{});
-    // #endregion
     setStageSaving(true);
     try {
       const res = await fetch("/api/lead-stages", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ stages: stageEdits.map((s, i) => ({ id: s.id, name: s.name, color: s.color, order: i })) }),
       });
-      // #region agent log
-      const resBody = await res.clone().text();
-      fetch('http://127.0.0.1:7682/ingest/b70e1de7-b1ca-437c-8f3d-79f7aafa5e30',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ceba26'},body:JSON.stringify({sessionId:'ceba26',location:'leads/page.tsx:handleSaveStages:response',message:'PUT /api/lead-stages response',data:{status:res.status,ok:res.ok,body:resBody.substring(0,500)},timestamp:Date.now(),hypothesisId:'H-A'})}).catch(()=>{});
-      // #endregion
-      if (!res.ok) throw new Error("Failed to save stages");
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Failed to save stages (${res.status})`);
+      }
       await fetchStages();
       await fetchPipeline();
       setStageManageOpen(false);
       toast.success("Stages saved");
     } catch (err) {
-      // #region agent log
-      fetch('http://127.0.0.1:7682/ingest/b70e1de7-b1ca-437c-8f3d-79f7aafa5e30',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ceba26'},body:JSON.stringify({sessionId:'ceba26',location:'leads/page.tsx:handleSaveStages:error',message:'handleSaveStages error caught',data:{error:err instanceof Error ? err.message : String(err)},timestamp:Date.now(),hypothesisId:'H-D'})}).catch(()=>{});
-      // #endregion
       toast.error(err instanceof Error ? err.message : "Failed to save stages");
     }
     finally { setStageSaving(false); }
