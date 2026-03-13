@@ -135,7 +135,7 @@ export default function ApiKeysPage() {
       const res = await fetch("/api/brands");
       if (!res.ok) return;
       const data = await res.json();
-      setBrands(data.brands || []);
+      setBrands(Array.isArray(data) ? data : data.brands || []);
     } catch {
       setBrands([]);
     }
