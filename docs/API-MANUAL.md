@@ -15,8 +15,9 @@
 7. [Deals API](#deals-api)
 8. [Activities API](#activities-api)
 9. [Dashboard API](#dashboard-api)
-10. [Sources API](#sources-api)
-11. [รหัสข้อผิดพลาด](#รหัสข้อผิดพลาด)
+10. [Comments API](#comments-api)
+11. [Sources API](#sources-api)
+12. [รหัสข้อผิดพลาด](#รหัสข้อผิดพลาด)
 
 ---
 
@@ -302,7 +303,63 @@ POST /api/leads/{id}/chat-logs
 DELETE /api/leads/{id}/chat-logs?logId=xxx
 ```
 
-### 9. Extras (Lead)
+### 9. Comments (Lead)
+
+#### ดึง Comments
+
+```
+GET /api/leads/{id}/comments
+```
+
+**Response 200:**
+
+```json
+[
+  {
+    "id": "clxxx...",
+    "text": "ลูกค้าสนใจแพ็คเกจดำน้ำ",
+    "createdAt": "2026-03-13T10:30:00Z",
+    "updatedAt": "2026-03-13T10:30:00Z",
+    "user": { "id": "...", "fullName": "John Admin", "avatarUrl": null }
+  }
+]
+```
+
+#### เพิ่ม Comment
+
+```
+POST /api/leads/{id}/comments
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| text | string | ใช่ | ข้อความ comment |
+
+**Response 201:** Comment object (พร้อม user)
+
+- บันทึกวันเวลาและผู้ submit อัตโนมัติ
+
+#### แก้ไข Comment
+
+```
+PUT /api/leads/{id}/comments?commentId=xxx
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| text | string | ใช่ | ข้อความใหม่ |
+
+- แก้ไขได้เฉพาะ comment ของตัวเอง (Super Admin แก้ไขได้ทุก comment)
+
+#### ลบ Comment
+
+```
+DELETE /api/leads/{id}/comments?commentId=xxx
+```
+
+- ลบได้เฉพาะ comment ของตัวเอง (Super Admin ลบได้ทุก comment)
+
+### 10. Extras (Lead)
 
 ข้อมูลเพิ่มเติม: ที่อยู่, งาน, การศึกษา, ผู้ติดต่อฉุกเฉิน, การแพทย์, ดำน้ำ, โซเชียล
 
@@ -364,7 +421,7 @@ PUT /api/leads/{id}/extras
 DELETE /api/leads/{id}/extras?type=addresses&recordId=xxx
 ```
 
-### 10. Files (Lead)
+### 11. Files (Lead)
 
 #### อัปโหลดไฟล์
 
@@ -384,7 +441,7 @@ Content-Type: multipart/form-data
 DELETE /api/leads/{id}/files?fileId=xxx
 ```
 
-### 11. นำเข้า Leads (CSV)
+### 12. นำเข้า Leads (CSV)
 
 ```
 POST /api/leads/import
@@ -404,7 +461,7 @@ Content-Type: multipart/form-data
 { "imported": 45, "skipped": 5 }
 ```
 
-### 12. ส่งออก Leads (CSV)
+### 13. ส่งออก Leads (CSV)
 
 ```
 GET /api/leads/export?brandId=xxx
@@ -577,7 +634,63 @@ POST /api/customers/{id}/chat-logs
 DELETE /api/customers/{id}/chat-logs?logId=xxx
 ```
 
-### 7. Extras (Customer)
+### 7. Comments (Customer)
+
+#### ดึง Comments
+
+```
+GET /api/customers/{id}/comments
+```
+
+**Response 200:**
+
+```json
+[
+  {
+    "id": "clxxx...",
+    "text": "ลูกค้า VIP ดูแลพิเศษ",
+    "createdAt": "2026-03-13T10:30:00Z",
+    "updatedAt": "2026-03-13T10:30:00Z",
+    "user": { "id": "...", "fullName": "John Admin", "avatarUrl": null }
+  }
+]
+```
+
+#### เพิ่ม Comment
+
+```
+POST /api/customers/{id}/comments
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| text | string | ใช่ | ข้อความ comment |
+
+**Response 201:** Comment object (พร้อม user)
+
+- บันทึกวันเวลาและผู้ submit อัตโนมัติ
+
+#### แก้ไข Comment
+
+```
+PUT /api/customers/{id}/comments?commentId=xxx
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| text | string | ใช่ | ข้อความใหม่ |
+
+- แก้ไขได้เฉพาะ comment ของตัวเอง (Super Admin แก้ไขได้ทุก comment)
+
+#### ลบ Comment
+
+```
+DELETE /api/customers/{id}/comments?commentId=xxx
+```
+
+- ลบได้เฉพาะ comment ของตัวเอง (Super Admin ลบได้ทุก comment)
+
+### 8. Extras (Customer)
 
 เหมือนกับ Lead Extras — รองรับ type: addresses, jobs, education, emergencyContacts, medical, diving, socials
 
@@ -588,7 +701,7 @@ PUT    /api/customers/{id}/extras        — { "type": "addresses", "recordId": 
 DELETE /api/customers/{id}/extras?type=addresses&recordId=xxx
 ```
 
-### 8. Files (Customer)
+### 9. Files (Customer)
 
 #### อัปโหลดไฟล์
 
@@ -608,7 +721,7 @@ Content-Type: multipart/form-data
 DELETE /api/customers/{id}/files?fileId=xxx
 ```
 
-### 9. Rewards (Customer)
+### 10. Rewards (Customer)
 
 #### ดูคะแนนสะสม
 
@@ -638,7 +751,7 @@ POST /api/customers/{id}/rewards
 | amount | number | ใช่ | จำนวน |
 | notes | string | ไม่ | หมายเหตุ |
 
-### 10. Vouchers (Customer)
+### 11. Vouchers (Customer)
 
 #### ดู Vouchers ที่ assign ให้ลูกค้า
 
@@ -675,7 +788,7 @@ PUT /api/customers/{id}/vouchers?recordId=xxx
 DELETE /api/customers/{id}/vouchers?recordId=xxx
 ```
 
-### 11. Campaigns ของ Customer
+### 12. Campaigns ของ Customer
 
 ```
 GET /api/customers/{id}/campaigns
@@ -683,7 +796,7 @@ GET /api/customers/{id}/campaigns
 
 แสดง campaigns ที่ลูกค้าเป็นสมาชิก พร้อม campaign info, stage, addedBy
 
-### 12. Deals ของ Customer
+### 13. Deals ของ Customer
 
 ```
 GET /api/customers/{id}/deals
@@ -691,7 +804,7 @@ GET /api/customers/{id}/deals
 
 แสดง deals ที่ผูกกับลูกค้า พร้อม lead, openedBy, closedBy
 
-### 13. นำเข้า Customers (CSV)
+### 14. นำเข้า Customers (CSV)
 
 ```
 POST /api/customers/import
@@ -707,7 +820,7 @@ Content-Type: multipart/form-data
 
 **Response 200:** `{ "imported": 45, "skipped": 5 }`
 
-### 14. ส่งออก Customers (CSV)
+### 15. ส่งออก Customers (CSV)
 
 ```
 GET /api/customers/export?brandId=xxx
@@ -880,6 +993,33 @@ Super Admin สามารถไม่ส่ง `brandId` เพื่อดู
 
 ---
 
+## Comments API
+
+Comments สามารถเพิ่มได้ทั้งใน Lead และ Customer — บันทึกวันเวลาและผู้ submit อัตโนมัติ
+
+### Permissions
+
+| Permission | Description |
+|------------|-------------|
+| `comments:read` | ดู comments |
+| `comments:write` | เพิ่ม/แก้ไข comments |
+| `comments:delete` | ลบ comments |
+
+- แก้ไข/ลบได้เฉพาะ comment ของตัวเอง
+- Super Admin แก้ไข/ลบได้ทุก comment
+- Role **Admin** ได้ทุก permission อัตโนมัติ
+- Role **Sales** ได้ `comments:read` + `comments:write` อัตโนมัติ
+- จัดการ permission ได้ที่หน้า Management > Roles
+
+### Endpoints
+
+| Endpoint | GET | POST | PUT | DELETE |
+|----------|-----|------|-----|--------|
+| `/api/leads/{id}/comments` | ✅ ดึง | ✅ เพิ่ม | ✅ แก้ไข (`?commentId=`) | ✅ ลบ (`?commentId=`) |
+| `/api/customers/{id}/comments` | ✅ ดึง | ✅ เพิ่ม | ✅ แก้ไข (`?commentId=`) | ✅ ลบ (`?commentId=`) |
+
+---
+
 ## Sources API
 
 ### ดูรายการ Sources
@@ -944,6 +1084,7 @@ DELETE /api/sources/{id}
 | `/api/leads` | ✅ รายการ | ✅ สร้าง | — | — | |
 | `/api/leads/{id}` | ✅ รายละเอียด | — | ✅ แก้ไข | ✅ ลบ | |
 | `/api/leads/{id}/convert` | — | ✅ แปลงเป็น Customer | — | — | |
+| `/api/leads/{id}/comments` | ✅ ดึง | ✅ เพิ่ม | ✅ แก้ไข | ✅ ลบ | owner / Super Admin |
 | `/api/leads/{id}/chat-logs` | ✅ ดึง | ✅ เพิ่ม | — | ✅ ลบ | |
 | `/api/leads/{id}/extras` | ✅ ดึง | ✅ เพิ่ม | ✅ แก้ไข | ✅ ลบ | |
 | `/api/leads/{id}/files` | — | ✅ อัปโหลด | — | ✅ ลบ | multipart/form-data |
@@ -953,6 +1094,7 @@ DELETE /api/sources/{id}
 | `/api/lead-stages` | ✅ รายการ | ✅ สร้าง | ✅ แก้ไข (bulk) | ✅ ลบ | Super Admin |
 | `/api/customers` | ✅ รายการ | ✅ สร้าง | — | — | |
 | `/api/customers/{id}` | ✅ รายละเอียด | — | ✅ แก้ไข | ✅ ลบ | |
+| `/api/customers/{id}/comments` | ✅ ดึง | ✅ เพิ่ม | ✅ แก้ไข | ✅ ลบ | owner / Super Admin |
 | `/api/customers/{id}/chat-logs` | ✅ ดึง | ✅ เพิ่ม | — | ✅ ลบ | |
 | `/api/customers/{id}/extras` | ✅ ดึง | ✅ เพิ่ม | ✅ แก้ไข | ✅ ลบ | |
 | `/api/customers/{id}/files` | — | ✅ อัปโหลด | — | ✅ ลบ | multipart/form-data |
@@ -972,7 +1114,7 @@ DELETE /api/sources/{id}
 | `/api/api-keys` | ✅ รายการ | ✅ สร้าง | — | — | Super Admin, Session only |
 | `/api/api-keys/{id}` | ✅ รายละเอียด | — | ✅ แก้ไข | ✅ ลบ | Super Admin, Session only |
 
-**รวมทั้งหมด: 30 endpoints, 72 operations**
+**รวมทั้งหมด: 32 endpoints, 80 operations**
 
 ---
 
