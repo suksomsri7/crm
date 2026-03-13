@@ -1457,15 +1457,24 @@ export default function CustomersPage() {
             )}
           </div>
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <div className="flex-1">
+            <div className="flex-1 flex gap-2 flex-wrap">
               {editingCustomer && (
-                <Button variant="outline" size="sm" onClick={() => {
-                  const name = [formData.firstName, formData.lastName].filter(Boolean).join(" ") || editingCustomer.name;
-                  setDealForm({ title: `Deal - ${name}`, value: "", stage: "proposal", notes: "" });
-                  setDealDialogOpen(true);
-                }}>
-                  <Plus className="size-4" />Create Deal
-                </Button>
+                <>
+                  <Button variant="destructive" size="sm" onClick={() => {
+                    setCustomerToDelete(editingCustomer);
+                    setDialogOpen(false);
+                    setDeleteDialogOpen(true);
+                  }}>
+                    <Trash2 className="size-4" />Delete
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => {
+                    const name = [formData.firstName, formData.lastName].filter(Boolean).join(" ") || editingCustomer.name;
+                    setDealForm({ title: `Deal - ${name}`, value: "", stage: "proposal", notes: "" });
+                    setDealDialogOpen(true);
+                  }}>
+                    <Plus className="size-4" />Create Deal
+                  </Button>
+                </>
               )}
             </div>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>

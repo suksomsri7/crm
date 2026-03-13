@@ -1126,6 +1126,13 @@ export default function LeadsPage() {
             <div className="flex-1 flex gap-2 flex-wrap">
               {editingLead && (
                 <>
+                  <Button variant="destructive" size="sm" onClick={() => {
+                    setLeadToDelete(editingLead);
+                    setDialogOpen(false);
+                    setDeleteDialogOpen(true);
+                  }}>
+                    <Trash2 className="size-4" />Delete
+                  </Button>
                   <Button variant="outline" size="sm" onClick={() => {
                     const name = [formData.firstName, formData.lastName].filter(Boolean).join(" ") || editingLead.title;
                     setDealForm({ title: `Deal - ${name}`, value: "", stage: "proposal", notes: "" });
