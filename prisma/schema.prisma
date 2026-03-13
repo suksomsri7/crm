@@ -39,6 +39,7 @@ model User {
   addedCampaignMembers  CampaignMember[]   @relation("CampaignMemberAddedBy")
   campaignComments      CampaignComment[]  @relation("CampaignCommentUser")
   apiKeys               ApiKey[]
+  comments              Comment[]
 
   @@map("users")
 }
@@ -205,6 +206,7 @@ model Customer {
   customerVouchers  CustomerVoucher[]
   campaignMembers   CampaignMember[]
   chatLogs          ChatLog[]
+  comments          Comment[]
 
   @@index([brandId])
   @@index([brandId, externalId])
@@ -281,6 +283,7 @@ model Lead {
   files             CustomerFile[]
   campaignMembers   CampaignMember[]
   chatLogs          ChatLog[]
+  comments          Comment[]
 
   @@index([brandId])
   @@index([brandId, externalId])
@@ -779,6 +782,29 @@ model CustomerVoucher {
   @@index([customerId])
   @@index([voucherId])
   @@map("customer_vouchers")
+}
+
+// ============================================================
+// COMMENTS
+// ============================================================
+
+model Comment {
+  id         String   @id @default(cuid())
+  leadId     String?
+  customerId String?
+  userId     String
+  text       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  lead     Lead?     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, createdAt])
+  @@index([customerId, createdAt])
+  @@index([userId])
+  @@map("comments")
 }
 
 // ============================================================

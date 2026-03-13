@@ -80,6 +80,7 @@ import { useBrand } from "@/components/providers/brand-provider";
 import { useSession } from "next-auth/react";
 import { format } from "date-fns";
 import { ChatLogSection } from "@/components/chat-log/chat-log-section";
+import { CommentSection } from "@/components/comment/comment-section";
 
 interface Customer {
   id: string;
@@ -1145,6 +1146,14 @@ export default function CustomersPage() {
                         </Button>
                       </CollapsibleContent>
                     </Collapsible>
+
+                    {/* Comments */}
+                    <CommentSection
+                      entityType="customer"
+                      entityId={editingCustomer.id}
+                      isOpen={openSections.has("comments")}
+                      onToggle={() => toggleSection("comments")}
+                    />
 
                     {/* Chat Log */}
                     <ChatLogSection

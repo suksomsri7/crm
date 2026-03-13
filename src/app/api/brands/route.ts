@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
 
   // Also create default roles: Sales, Marketing, Support
   const salesPerms = allPermissions.filter((p) =>
-    ["customers:read", "customers:write", "leads:read", "leads:write", "leads:delete", "deals:read", "deals:write"].includes(`${p.resource}:${p.action}`)
+    ["customers:read", "customers:write", "leads:read", "leads:write", "leads:delete", "deals:read", "deals:write", "comments:read", "comments:write"].includes(`${p.resource}:${p.action}`)
   );
   await db.role.create({
     data: {

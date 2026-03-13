@@ -82,6 +82,7 @@ import { useSession } from "next-auth/react";
 import { format } from "date-fns";
 import { LeadPipelineCard } from "./lead-pipeline-card";
 import { ChatLogSection } from "@/components/chat-log/chat-log-section";
+import { CommentSection } from "@/components/comment/comment-section";
 
 interface LeadStageConfig {
   id: string;
@@ -1109,6 +1110,14 @@ export default function LeadsPage() {
                         </Button>
                       </CollapsibleContent>
                     </Collapsible>
+
+                    {/* Comments */}
+                    <CommentSection
+                      entityType="lead"
+                      entityId={editingLead.id}
+                      isOpen={openSections.has("comments")}
+                      onToggle={() => toggleSection("comments")}
+                    />
 
                     {/* Chat Log */}
                     <ChatLogSection

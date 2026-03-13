@@ -53,6 +53,9 @@ export type ResourceAction =
   | "brands:read"
   | "brands:write"
   | "brands:delete"
+  | "comments:read"
+  | "comments:write"
+  | "comments:delete"
   | "settings:read"
   | "settings:write";
 
@@ -63,6 +66,7 @@ export const ALL_PERMISSIONS: ResourceAction[] = [
   "deals:read", "deals:write", "deals:delete",
   "campaigns:read", "campaigns:write", "campaigns:delete", "campaigns:import",
   "tickets:read", "tickets:write", "tickets:delete",
+  "comments:read", "comments:write", "comments:delete",
   "reports:read", "reports:export",
   "sources:read", "sources:write", "sources:delete",
   "roles:read", "roles:write", "roles:delete",
@@ -95,6 +99,10 @@ export const PERMISSION_GROUPS: Record<string, { label: string; permissions: Res
   vouchers: {
     label: "Vouchers",
     permissions: ["tickets:read", "tickets:write", "tickets:delete"],
+  },
+  comments: {
+    label: "Comments",
+    permissions: ["comments:read", "comments:write", "comments:delete"],
   },
   reports: {
     label: "Reports",
