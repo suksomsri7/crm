@@ -19,6 +19,7 @@ import {
   PanelLeft,
   ChevronRight,
   Store,
+  KeyRound,
 } from "lucide-react";
 import { useBrand } from "@/components/providers/brand-provider";
 import { BrandAccess } from "@/lib/auth-types";
@@ -60,6 +61,7 @@ const MANAGEMENT_ITEMS: NavItem[] = [
   { href: "/management/brands", label: "Brands", icon: Building2 },
   { href: "/management/roles", label: "Roles", icon: Shield },
   { href: "/management/sources", label: "Sources", icon: Target },
+  { href: "/management/api-keys", label: "API Keys", icon: KeyRound },
 ];
 
 function NavItemLink({
