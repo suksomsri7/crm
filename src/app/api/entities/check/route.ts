@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { authOrApiKey } from "@/lib/api-key-auth";
 import { db } from "@/lib/db";
 
 /**
@@ -9,7 +9,7 @@ import { db } from "@/lib/db";
  * ใช้ก่อนเพิ่มข้อมูลเพื่อป้องกันข้อมูลซ้ำ
  */
 export async function GET(req: NextRequest) {
-  const session = await auth();
+  const session = await authOrApiKey(req);
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { authOrApiKey } from "@/lib/api-key-auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
@@ -15,7 +15,7 @@ const ticketSchema = z.object({
 
 // GET /api/tickets?brandId=xxx&search=xxx&status=xxx&priority=xxx&page=1&limit=20
 export async function GET(req: NextRequest) {
-  const session = await auth();
+  const session = await authOrApiKey(req);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = session.user as any;
 
@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/tickets
 export async function POST(req: NextRequest) {
-  const session = await auth();
+  const session = await authOrApiKey(req);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = session.user as any;
 

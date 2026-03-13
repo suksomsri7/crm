@@ -13,10 +13,16 @@ export function middleware(req: NextRequest) {
     req.cookies.get("authjs.session-token")?.value ||
     req.cookies.get("__Secure-authjs.session-token")?.value;
 
+  const hasApiKey = req.headers.get("x-api-key") !== null;
+
   if (isPublicRoute) {
     if (sessionToken && (pathname === "/login" || pathname === "/forgot-password")) {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
+    return NextResponse.next();
+  }
+
+  if (hasApiKey && pathname.startsWith("/api/")) {
     return NextResponse.next();
   }
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { authOrApiKey } from "@/lib/api-key-auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
@@ -11,8 +11,8 @@ const brandSchema = z.object({
 });
 
 // GET /api/brands - list all brands (super admin only)
-export async function GET() {
-  const session = await auth();
+export async function GET(req: NextRequest) {
+  const session = await authOrApiKey(req);
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -35,7 +35,7 @@ export async function GET() {
 
 // POST /api/brands - create brand (super admin only)
 export async function POST(req: NextRequest) {
-  const session = await auth();
+  const session = await authOrApiKey(req);
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

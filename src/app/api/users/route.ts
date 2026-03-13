@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { authOrApiKey } from "@/lib/api-key-auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
@@ -14,7 +14,7 @@ const createUserSchema = z.object({
 
 // GET all users (super admin only)
 export async function GET(req: NextRequest) {
-  const session = await auth();
+  const session = await authOrApiKey(req);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = session.user as any;
   if (!user.isSuperAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
 
 // POST create user (super admin only)
 export async function POST(req: NextRequest) {
-  const session = await auth();
+  const session = await authOrApiKey(req);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = session.user as any;
   if (!user.isSuperAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });

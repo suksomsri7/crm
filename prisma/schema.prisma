@@ -38,6 +38,7 @@ model User {
   createdCampaigns      Campaign[]         @relation("CampaignCreatedBy")
   addedCampaignMembers  CampaignMember[]   @relation("CampaignMemberAddedBy")
   campaignComments      CampaignComment[]  @relation("CampaignCommentUser")
+  apiKeys               ApiKey[]
 
   @@map("users")
 }
@@ -64,6 +65,7 @@ model Brand {
   auditLogs   AuditLog[]
   activities  Activity[]
   notifications Notification[]
+  apiKeys     ApiKey[]
 
   @@map("brands")
 }
@@ -119,6 +121,32 @@ model UserBrand {
 
   @@unique([userId, brandId])
   @@map("user_brands")
+}
+
+// ============================================================
+// API KEYS (for external integrations like n8n)
+// ============================================================
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  name        String
+  keyHash     String    @unique @map("key_hash")
+  keyPrefix   String    @map("key_prefix")
+  userId      String
+  brandId     String
+  permissions String[]  @default([])
+  isActive    Boolean   @default(true)
+  lastUsedAt  DateTime? @map("last_used_at")
+  expiresAt   DateTime? @map("expires_at")
+  createdAt   DateTime  @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@index([keyHash])
+  @@index([userId])
+  @@index([brandId])
+  @@map("api_keys")
 }
 
 // ============================================================

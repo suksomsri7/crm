@@ -20,24 +20,80 @@
 
 ## Authentication
 
-API ทั้งหมดใช้ **NextAuth Session** (Cookie-based)
+API รองรับ 2 รูปแบบ:
 
-### สำหรับ Agent / การเรียกจากภายนอก
+### วิธีที่ 1: API Key (แนะนำสำหรับ n8n / ระบบภายนอก)
+
+ใช้ header `x-api-key` ส่งค่า API Key ที่สร้างจากหน้า Admin
+
+```http
+GET {BASE_URL}/api/leads?brandId=xxx
+x-api-key: crm_a1b2c3d4e5f6...
+```
+
+- สร้าง key ได้ที่ `POST /api/api-keys` (ต้องเป็น Super Admin)
+- key จะแสดงเพียงครั้งเดียวตอนสร้าง — ให้ copy เก็บไว้ทันที
+- สามารถกำหนด permissions และวันหมดอายุได้
+- key ผูกกับ brand เดียว — ถ้าต้องการเข้าถึงหลาย brand ให้สร้างหลาย key
+
+#### ตัวอย่างใน n8n (HTTP Request node)
+
+| Setting | Value |
+|---------|-------|
+| Method | GET |
+| URL | `https://your-crm.com/api/leads?brandId=xxx` |
+| Header Auth | `x-api-key` = `crm_a1b2c3d4...` |
+
+### วิธีที่ 2: NextAuth Session (Cookie-based)
+
+สำหรับ browser / frontend ใช้ session cookie ตามปกติ
 
 1. **Login ก่อน** - ส่ง POST ไปที่ `/api/auth/callback/credentials` หรือใช้ signIn
 2. **เก็บ Session Cookie** - คุกกี้จะถูกตั้งค่าหลัง login สำเร็จ
 3. **ส่ง Cookie ในทุก Request** - ต้องใช้ `credentials: 'include'` เมื่อเรียก fetch
 
-### ตัวอย่างการ Login (สำหรับ Agent)
+---
+
+## API Keys Management
+
+> Super Admin only
+
+### สร้าง API Key
 
 ```http
-POST {BASE_URL}/api/auth/callback/credentials
-Content-Type: application/x-www-form-urlencoded
+POST /api/api-keys
+Content-Type: application/json
 
-username=your_username&password=your_password
+{
+  "name": "n8n Production",
+  "brandId": "clxxx...",
+  "permissions": ["leads:read", "leads:write", "customers:read", "customers:write"],
+  "expiresAt": "2027-01-01T00:00:00Z"
+}
 ```
 
-หลัง login สำเร็จ ให้เก็บ cookies และส่งต่อในทุก API call
+Response จะมี field `key` ที่แสดงค่า key เต็ม — **แสดงเพียงครั้งเดียว**
+
+### ดูรายการ API Keys
+
+```
+GET /api/api-keys?brandId=xxx
+```
+
+### แก้ไข / ปิดการใช้งาน
+
+```http
+PUT /api/api-keys/{id}
+Content-Type: application/json
+
+{ "isActive": false }
+```
+
+### ลบ API Key
+
+```
+DELETE /api/api-keys/{id}
+```
 
 ---
 

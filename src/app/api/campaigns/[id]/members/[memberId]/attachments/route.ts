@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { authOrApiKey } from "@/lib/api-key-auth";
 import { db } from "@/lib/db";
 import { uploadToBunny, extractPathFromCdnUrl, deleteFromBunny } from "@/lib/bunny-storage";
 
@@ -7,7 +7,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; memberId: string }> }
 ) {
-  const session = await auth();
+  const session = await authOrApiKey(req);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { memberId } = await params;
 
@@ -35,7 +35,7 @@ export async function POST(
 }
 
 export async function DELETE(req: NextRequest) {
-  const session = await auth();
+  const session = await authOrApiKey(req);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);

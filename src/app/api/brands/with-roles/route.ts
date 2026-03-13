@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { authOrApiKey } from "@/lib/api-key-auth";
 import { db } from "@/lib/db";
 
 // GET brands with roles (for user management dropdowns - super admin only)
-export async function GET() {
-  const session = await auth();
+export async function GET(req: NextRequest) {
+  const session = await authOrApiKey(req);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = session.user as any;
   if (!user.isSuperAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
