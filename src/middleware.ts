@@ -15,6 +15,12 @@ export function middleware(req: NextRequest) {
 
   const hasApiKey = req.headers.get("x-api-key") !== null;
 
+  // #region agent log
+  if (pathname.startsWith("/api/")) {
+    fetch('http://127.0.0.1:7682/ingest/b70e1de7-b1ca-437c-8f3d-79f7aafa5e30',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b541a5'},body:JSON.stringify({sessionId:'b541a5',location:'middleware.ts:MW',message:'API middleware hit',data:{pathname,hasApiKey,hasSession:!!sessionToken,method:req.method},timestamp:Date.now(),hypothesisId:'H-A'})}).catch(()=>{});
+  }
+  // #endregion
+
   if (isPublicRoute) {
     if (sessionToken && (pathname === "/login" || pathname === "/forgot-password")) {
       return NextResponse.redirect(new URL("/dashboard", req.url));
