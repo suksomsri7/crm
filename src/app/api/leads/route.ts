@@ -82,10 +82,6 @@ export async function GET(req: NextRequest) {
     db.lead.count({ where }),
   ]);
 
-  // #region agent log
-  fetch('http://127.0.0.1:7682/ingest/b70e1de7-b1ca-437c-8f3d-79f7aafa5e30',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b541a5'},body:JSON.stringify({sessionId:'b541a5',location:'leads/route.ts:GET',message:'Leads query result',data:{brandId,search,stage,status,page,limit,total,leadsCount:leads.length,whereKeys:Object.keys(where)},timestamp:Date.now(),hypothesisId:'H-C'})}).catch(()=>{});
-  // #endregion
-
   return NextResponse.json({ leads, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } });
 }
 

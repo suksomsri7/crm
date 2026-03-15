@@ -28,8 +28,6 @@ async function resolveApiKey(req: NextRequest) {
   if (!key) return null;
 
   const keyHash = hashApiKey(key);
-  const keyPrefix = key.slice(0, 12);
-
   const apiKey = await db.apiKey.findUnique({
     where: { keyHash },
     include: {
@@ -37,10 +35,6 @@ async function resolveApiKey(req: NextRequest) {
       brand: { select: { id: true, name: true, logoUrl: true } },
     },
   });
-
-  // #region agent log
-  fetch('http://127.0.0.1:7682/ingest/b70e1de7-b1ca-437c-8f3d-79f7aafa5e30',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b541a5'},body:JSON.stringify({sessionId:'b541a5',location:'api-key-auth.ts:resolveApiKey',message:'API key lookup',data:{keyPrefix,found:!!apiKey,isActive:apiKey?.isActive,userActive:apiKey?.user?.isActive,expired:apiKey?.expiresAt?apiKey.expiresAt<new Date():false,brandId:apiKey?.brand?.id,brandName:apiKey?.brand?.name},timestamp:Date.now(),hypothesisId:'H-B'})}).catch(()=>{});
-  // #endregion
 
   if (!apiKey) return null;
   if (!apiKey.isActive) return null;
@@ -80,9 +74,5 @@ export async function authOrApiKey(req: NextRequest) {
   const session = await auth();
   if (session?.user) return session;
 
-  const apiKeyResult = await resolveApiKey(req);
-  // #region agent log
-  fetch('http://127.0.0.1:7682/ingest/b70e1de7-b1ca-437c-8f3d-79f7aafa5e30',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b541a5'},body:JSON.stringify({sessionId:'b541a5',location:'api-key-auth.ts:authOrApiKey',message:'Auth result',data:{hasSession:!!session?.user,hasApiKey:!!apiKeyResult,userId:apiKeyResult?.user?.id,activeBrandId:(apiKeyResult?.user as any)?.activeBrandId},timestamp:Date.now(),hypothesisId:'H-E'})}).catch(()=>{});
-  // #endregion
-  return apiKeyResult;
+  return resolveApiKey(req);
 }

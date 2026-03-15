@@ -20,12 +20,27 @@ export async function GET(
   }
 
   const { id } = await params;
+  const { searchParams } = new URL(req.url);
+  const limit = parseInt(searchParams.get("limit") || "0");
+  const page = parseInt(searchParams.get("page") || "1");
+  const order = searchParams.get("order") === "desc" ? "desc" as const : "asc" as const;
 
-  const logs = await db.chatLog.findMany({
-    where: { leadId: id },
-    orderBy: { sentAt: "asc" },
-  });
+  const where = { leadId: id };
+  const orderBy = { sentAt: order };
 
+  if (limit > 0) {
+    const skip = (page - 1) * limit;
+    const [logs, total] = await Promise.all([
+      db.chatLog.findMany({ where, orderBy, skip, take: limit }),
+      db.chatLog.count({ where }),
+    ]);
+    return NextResponse.json({
+      logs,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    });
+  }
+
+  const logs = await db.chatLog.findMany({ where, orderBy });
   return NextResponse.json(logs);
 }
 
