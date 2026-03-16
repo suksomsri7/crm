@@ -39,8 +39,8 @@ export async function GET(req: NextRequest) {
 
   const [lead, customer] = await Promise.all([
     db.lead.findFirst({
-      where: { brandId, externalId: externalId.trim() },
-      select: { id: true, title: true, firstName: true, lastName: true, email: true, stage: true },
+      where: { brandId, externalId: externalId.trim(), status: { not: "converted" } },
+      select: { id: true, title: true, firstName: true, lastName: true, email: true, stage: true, status: true },
     }),
     db.customer.findFirst({
       where: { brandId, externalId: externalId.trim() },
