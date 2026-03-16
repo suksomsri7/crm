@@ -98,6 +98,18 @@ export async function POST(
         data: { customerId: customer.id },
       });
 
+      // Transfer chat logs
+      await tx.chatLog.updateMany({
+        where: { leadId: id, customerId: null },
+        data: { customerId: customer.id },
+      });
+
+      // Transfer comments
+      await tx.comment.updateMany({
+        where: { leadId: id, customerId: null },
+        data: { customerId: customer.id },
+      });
+
       // Transfer deals
       await tx.deal.updateMany({
         where: { leadId: id, customerId: null },
