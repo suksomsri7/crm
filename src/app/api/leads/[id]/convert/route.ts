@@ -38,9 +38,13 @@ export async function POST(
         data: {
           brandId: lead.brandId,
           name,
+          externalId: lead.externalId,
           titlePrefix: lead.titlePrefix,
+          titlePrefixTh: lead.titlePrefixTh,
           firstName: lead.firstName,
+          firstNameTh: lead.firstNameTh,
           lastName: lead.lastName,
+          lastNameTh: lead.lastNameTh,
           nickname: lead.nickname,
           sex: lead.sex,
           email: lead.email,
